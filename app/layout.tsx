@@ -1,21 +1,54 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://voiceroulette.vercel.app");
+
 export const metadata: Metadata = {
-  title: "Voice Roulette",
-  description: "연인과 함께 설레는 목소리와 벌칙/소원을 뽑아보세요!",
+  metadataBase: new URL(siteUrl),
+  title: "Voice Roulette 💕",
+  description: "룰렛을 돌려보세요!",
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
     ],
     apple: [
-      { url: '/apple-touch-icon.png' },
+      { url: "/apple-touch-icon.png" },
     ],
   },
   openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: siteUrl,
+    siteName: "Voice Roulette",
     title: "Voice Roulette 💕",
-    description: "연인과 함께 설레는 목소리와 벌칙/소원을 뽑아보세요!",
+    description: "룰렛을 돌려보세요!",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 675,
+        alt: "Voice Roulette 썸네일",
+        type: "image/jpeg",
+      },
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 675,
+        alt: "Voice Roulette 썸네일",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Voice Roulette 💕",
+    description: "룰렛을 돌려보세요!",
+    images: ["/og-image.jpg"],
   },
 };
 
