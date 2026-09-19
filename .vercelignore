@@ -1,0 +1,4 @@
+# Files ignored during Vercel deployments
+data/admin.json
+data/roulette.json
+data/roulette_items.json
