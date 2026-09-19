@@ -1,6 +1,6 @@
-import { RouletteItem, RouletteRoom, RouletteState } from '@/types/roulette';
+import { RouletteItem, RouletteData, RouletteState } from '@/types/roulette';
 
-const LOCAL_ROOMS_KEY = 'vr_roulette_rooms';
+const LOCAL_ROULETTES_KEY = 'vr_roulettes';
 const LOCAL_ITEMS_KEY = 'vr_roulette_items';
 
 // 모바일 비보안 HTTP IP 환경에서도 동작하는 안전한 UUID 생성기
@@ -28,7 +28,7 @@ export const PASTEL_PALETTE = [
 ];
 
 // 기본 샘플 커플 룰렛 데이터
-export const DEFAULT_SAMPLE_ROOM: RouletteRoom = {
+export const DEFAULT_SAMPLE_ROULETTE: RouletteData = {
   id: 'sample-love-roulette',
   title: '우리의 달콤한 커플 룰렛 💕',
   reset_mode: 'daily',
@@ -55,7 +55,7 @@ export const DEFAULT_SAMPLE_ITEMS: RouletteItem[] = [
 // ----------------------------------------------------------------------
 // 1. 유효 기간 및 잔여 횟수 계산 유틸리티
 // ----------------------------------------------------------------------
-export function calculateRemainingSpins(room: RouletteRoom): {
+export function calculateRemainingSpins(roulette: RouletteData): {
   remaining: number;
   isValidPeriod: boolean;
   isDateReset: boolean;
@@ -64,33 +64,33 @@ export function calculateRemainingSpins(room: RouletteRoom): {
   const now = new Date().getTime();
 
   let isValidPeriod = true;
-  if (room.valid_from && new Date(room.valid_from).getTime() > now) {
+  if (roulette.valid_from && new Date(roulette.valid_from).getTime() > now) {
     isValidPeriod = false;
   }
-  if (room.valid_until && new Date(room.valid_until).getTime() < now) {
+  if (roulette.valid_until && new Date(roulette.valid_until).getTime() < now) {
     isValidPeriod = false;
   }
 
-  let used = room.used_spins || 0;
+  let used = roulette.used_spins || 0;
   let isDateReset = false;
 
-  if (room.reset_mode === 'daily') {
-    if (room.last_reset_date !== today) {
+  if (roulette.reset_mode === 'daily') {
+    if (roulette.last_reset_date !== today) {
       used = 0;
       isDateReset = true;
     }
   }
 
   let base = 0;
-  if (room.reset_mode === 'daily') {
-    base = room.daily_spins ?? 3;
-  } else if (room.reset_mode === 'total') {
-    base = room.total_spins ?? 10;
-  } else if (room.reset_mode === 'infinite') {
+  if (roulette.reset_mode === 'daily') {
+    base = roulette.daily_spins ?? 3;
+  } else if (roulette.reset_mode === 'total') {
+    base = roulette.total_spins ?? 10;
+  } else if (roulette.reset_mode === 'infinite') {
     return { remaining: 999, isValidPeriod, isDateReset };
   }
 
-  const bonus = room.bonus_spins || 0;
+  const bonus = roulette.bonus_spins || 0;
   const remaining = Math.max(0, base + bonus - used);
 
   return { remaining, isValidPeriod, isDateReset };
@@ -99,21 +99,21 @@ export function calculateRemainingSpins(room: RouletteRoom): {
 // ----------------------------------------------------------------------
 // 2. 브라우저 LocalStorage 헬퍼
 // ----------------------------------------------------------------------
-export function getLocalRooms(): RouletteRoom[] {
+export function getLocalRoulettes(): RouletteData[] {
   if (typeof window === 'undefined') return [];
   try {
-    const data = localStorage.getItem(LOCAL_ROOMS_KEY);
+    const data = localStorage.getItem(LOCAL_ROULETTES_KEY);
     if (!data) return [];
-    const rooms = JSON.parse(data);
-    return Array.isArray(rooms) ? rooms : [];
+    const list = JSON.parse(data);
+    return Array.isArray(list) ? list : [];
   } catch {
     return [];
   }
 }
 
-export function saveLocalRooms(rooms: RouletteRoom[]) {
+export function saveLocalRoulettes(roulettes: RouletteData[]) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_ROOMS_KEY, JSON.stringify(rooms));
+  localStorage.setItem(LOCAL_ROULETTES_KEY, JSON.stringify(roulettes));
 }
 
 export function getLocalItems(): RouletteItem[] {
@@ -134,26 +134,31 @@ export function saveLocalItems(items: RouletteItem[]) {
 }
 
 // ----------------------------------------------------------------------
-// 3. 룸 및 아이템 조회 (Server API ➔ LocalStorage)
+// 3. 룰렛 및 아이템 조회 (Server API ➔ LocalStorage)
 // ----------------------------------------------------------------------
-export async function getRouletteRoom(roomId: string): Promise<RouletteState | null> {
-  // 1) Next.js Server API 연동 시도 (다른 브라우저, 기기, 시크릿창 공유 지원)
+export async function getRouletteData(rouletteId: string): Promise<RouletteState | null> {
+  // 1) Next.js Server API 연동 시도
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/rooms/${roomId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/roulette/${rouletteId}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (data && data.room) {
-          // 서버에서 가져온 방을 로컬 스토리지와 동기화
-          const localRooms = getLocalRooms();
-          const rIdx = localRooms.findIndex((r) => r.id === roomId);
+        const roulette = data.roulette as RouletteData;
+        if (roulette) {
+          const localRoulettes = getLocalRoulettes();
+          const rIdx = localRoulettes.findIndex((r) => r.id === rouletteId);
           if (rIdx >= 0) {
-            localRooms[rIdx] = data.room;
+            localRoulettes[rIdx] = roulette;
           } else {
-            localRooms.unshift(data.room);
+            localRoulettes.unshift(roulette);
           }
-          saveLocalRooms(localRooms);
-          return data as RouletteState;
+          saveLocalRoulettes(localRoulettes);
+          return {
+            roulette,
+            items: data.items,
+            remaining_spins: data.remaining_spins,
+            is_valid_period: data.is_valid_period,
+          };
         }
       }
     } catch (e) {
@@ -161,46 +166,46 @@ export async function getRouletteRoom(roomId: string): Promise<RouletteState | n
     }
   }
 
-  // 2) LocalStorage Fallback (오프라인 및 서버리스 환경 대비)
-  const rooms = getLocalRooms();
-  const room = rooms.find((r) => r.id === roomId);
-  if (room) {
+  // 2) LocalStorage Fallback
+  const roulettes = getLocalRoulettes();
+  const roulette = roulettes.find((r) => r.id === rouletteId);
+  if (roulette) {
     const allItems = getLocalItems();
-    let items = allItems.filter((it) => (it.roulette_id || it.room_id) === roomId);
-    if (items.length === 0 && roomId === DEFAULT_SAMPLE_ROOM.id) {
+    let items = allItems.filter((it) => it.roulette_id === rouletteId);
+    if (items.length === 0 && rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
       items = DEFAULT_SAMPLE_ITEMS;
     }
 
-    const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(room);
+    const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(roulette);
     if (isDateReset) {
-      room.used_spins = 0;
-      room.last_reset_date = new Date().toISOString().slice(0, 10);
-      saveLocalRooms(rooms);
+      roulette.used_spins = 0;
+      roulette.last_reset_date = new Date().toISOString().slice(0, 10);
+      saveLocalRoulettes(roulettes);
     }
 
-    // 서버에 방이 없는 경우 백그라운드에서 서버로 자동 재동기화 시도
-    if (typeof window !== 'undefined' && roomId !== DEFAULT_SAMPLE_ROOM.id) {
-      fetch('/api/rooms', {
+    // 서버에 룰렛이 없는 경우 백그라운드에서 서버로 자동 재동기화 시도
+    if (typeof window !== 'undefined' && rouletteId !== DEFAULT_SAMPLE_ROULETTE.id) {
+      fetch('/api/roulette', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room, items }),
+        body: JSON.stringify({ roulette, items }),
       }).catch(() => {});
     }
 
     return {
-      room,
+      roulette,
       items,
       remaining_spins: remaining,
       is_valid_period: isValidPeriod,
     };
   }
 
-  // 3) 기본 샘플 룸 처리
-  if (roomId === DEFAULT_SAMPLE_ROOM.id) {
+  // 3) 기본 샘플 룰렛 처리
+  if (rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
     return {
-      room: DEFAULT_SAMPLE_ROOM,
+      roulette: DEFAULT_SAMPLE_ROULETTE,
       items: DEFAULT_SAMPLE_ITEMS,
-      remaining_spins: DEFAULT_SAMPLE_ROOM.daily_spins,
+      remaining_spins: DEFAULT_SAMPLE_ROULETTE.daily_spins,
       is_valid_period: true,
     };
   }
@@ -209,24 +214,24 @@ export async function getRouletteRoom(roomId: string): Promise<RouletteState | n
 }
 
 // ----------------------------------------------------------------------
-// 4. 룸 생성 및 수정 (Settings) - Server API 및 LocalStorage 저장
+// 4. 룰렛 생성 및 수정 (Settings) - Server API 및 LocalStorage 저장
 // ----------------------------------------------------------------------
-export async function saveRouletteRoom(
-  room: RouletteRoom,
+export async function saveRouletteData(
+  roulette: RouletteData,
   items: RouletteItem[]
-): Promise<{ success: boolean; room: RouletteRoom; error?: string }> {
-  const updatedRoom = {
-    ...room,
+): Promise<{ success: boolean; roulette: RouletteData; error?: string }> {
+  const updatedRoulette = {
+    ...roulette,
     updated_at: new Date().toISOString(),
   };
 
   // 1) Server API에 저장 (JSON 파일 기반 영구 저장)
   if (typeof window !== 'undefined') {
     try {
-      await fetch('/api/rooms', {
+      await fetch('/api/roulette', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room: updatedRoom, items }),
+        body: JSON.stringify({ roulette: updatedRoulette, items }),
       });
     } catch (e) {
       console.warn('Server API save failed:', e);
@@ -234,35 +239,35 @@ export async function saveRouletteRoom(
   }
 
   // 2) LocalStorage에도 보존
-  const rooms = getLocalRooms();
-  const roomIdx = rooms.findIndex((r) => r.id === updatedRoom.id);
-  if (roomIdx >= 0) {
-    rooms[roomIdx] = updatedRoom;
+  const roulettes = getLocalRoulettes();
+  const rIdx = roulettes.findIndex((r) => r.id === updatedRoulette.id);
+  if (rIdx >= 0) {
+    roulettes[rIdx] = updatedRoulette;
   } else {
-    rooms.unshift(updatedRoom);
+    roulettes.unshift(updatedRoulette);
   }
-  saveLocalRooms(rooms);
+  saveLocalRoulettes(roulettes);
 
-  const currentItems = getLocalItems().filter((it) => (it.roulette_id || it.room_id) !== updatedRoom.id);
+  const currentItems = getLocalItems().filter((it) => it.roulette_id !== updatedRoulette.id);
   const newItems = items.map((it, idx) => ({
     ...it,
     id: it.id || generateUUID(),
-    roulette_id: updatedRoom.id,
+    roulette_id: updatedRoulette.id,
     sort_order: idx,
   }));
   saveLocalItems([...currentItems, ...newItems]);
 
-  return { success: true, room: updatedRoom };
+  return { success: true, roulette: updatedRoulette };
 }
 
 // ----------------------------------------------------------------------
 // 5. 스핀 소진 (차감)
 // ----------------------------------------------------------------------
-export async function consumeSpin(roomId: string): Promise<number> {
+export async function consumeSpin(rouletteId: string): Promise<number> {
   // 1) Server API
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/rooms/${roomId}`, {
+      const res = await fetch(`/api/roulette/${rouletteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'consume' }),
@@ -277,33 +282,33 @@ export async function consumeSpin(roomId: string): Promise<number> {
   }
 
   // 2) LocalStorage
-  const rooms = getLocalRooms();
-  const room = rooms.find((r) => r.id === roomId);
-  if (room) {
-    room.used_spins = (room.used_spins || 0) + 1;
-    room.last_reset_date = new Date().toISOString().slice(0, 10);
-    saveLocalRooms(rooms);
-    const { remaining } = calculateRemainingSpins(room);
+  const roulettes = getLocalRoulettes();
+  const roulette = roulettes.find((r) => r.id === rouletteId);
+  if (roulette) {
+    roulette.used_spins = (roulette.used_spins || 0) + 1;
+    roulette.last_reset_date = new Date().toISOString().slice(0, 10);
+    saveLocalRoulettes(roulettes);
+    const { remaining } = calculateRemainingSpins(roulette);
     return remaining;
   }
   return 0;
 }
 
 // ----------------------------------------------------------------------
-// 6. 보너스 기회 부여 및 수동 차감 (Settings에서 관리)
+// 6. 보너스 기회 부여 및 수동 차감
 // ----------------------------------------------------------------------
-export async function adjustBonusSpins(roomId: string, delta: number): Promise<RouletteRoom | null> {
+export async function adjustBonusSpins(rouletteId: string, delta: number): Promise<RouletteData | null> {
   // 1) Server API
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/rooms/${roomId}`, {
+      const res = await fetch(`/api/roulette/${rouletteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'adjust_bonus', delta }),
       });
       if (res.ok) {
         const data = await res.json();
-        return data.room;
+        return data.roulette;
       }
     } catch (e) {
       console.warn('Server API adjust bonus failed:', e);
@@ -311,13 +316,13 @@ export async function adjustBonusSpins(roomId: string, delta: number): Promise<R
   }
 
   // 2) LocalStorage
-  const rooms = getLocalRooms();
-  const room = rooms.find((r) => r.id === roomId);
-  if (room) {
-    room.bonus_spins = (room.bonus_spins || 0) + delta;
-    room.updated_at = new Date().toISOString();
-    saveLocalRooms(rooms);
-    return room;
+  const roulettes = getLocalRoulettes();
+  const roulette = roulettes.find((r) => r.id === rouletteId);
+  if (roulette) {
+    roulette.bonus_spins = (roulette.bonus_spins || 0) + delta;
+    roulette.updated_at = new Date().toISOString();
+    saveLocalRoulettes(roulettes);
+    return roulette;
   }
   return null;
 }
@@ -327,7 +332,7 @@ export async function adjustBonusSpins(roomId: string, delta: number): Promise<R
 // ----------------------------------------------------------------------
 export async function uploadAudioFile(
   file: Blob | File,
-  roomId: string,
+  rouletteId: string,
   itemId: string
 ): Promise<{ url: string }> {
   // 1) Server API 업로드 (서버 로컬 public/uploads/ 저장)
@@ -335,7 +340,7 @@ export async function uploadAudioFile(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('roomId', roomId);
+      formData.append('rouletteId', rouletteId);
       formData.append('itemId', itemId);
 
       const res = await fetch('/api/upload', {

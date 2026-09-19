@@ -19,8 +19,8 @@ export default function Header({
   onDisabledTestClick,
 }: HeaderProps) {
   const params = useParams();
-  const roomId = (params?.id as string) || '';
-  const playHref = testHref || (roomId ? `/game/${roomId}?mode=test` : '/');
+  const rouletteId = (params?.id as string) || '';
+  const playHref = testHref || (rouletteId ? `/game/${rouletteId}?mode=test` : '/');
 
   return (
     <header className="w-full max-w-lg mx-auto pt-5 px-4 pb-2 flex items-center justify-between">

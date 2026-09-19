@@ -5,13 +5,13 @@ import RouletteWheel from '@/components/RouletteWheel';
 import ResultModal from '@/components/ResultModal';
 import ItemListModal from '@/components/ItemListModal';
 import { RouletteItem, RouletteState } from '@/types/roulette';
-import { consumeSpin, DEFAULT_SAMPLE_ITEMS, DEFAULT_SAMPLE_ROOM, getRouletteRoom } from '@/lib/storage';
-import { Heart, Sparkles, Clock, AlertCircle } from 'lucide-react';
+import { consumeSpin, DEFAULT_SAMPLE_ITEMS, DEFAULT_SAMPLE_ROULETTE, getRouletteData } from '@/lib/storage';
+import { Heart, Clock, AlertCircle } from 'lucide-react';
 
 const INITIAL_SAMPLE_STATE: RouletteState = {
-  room: DEFAULT_SAMPLE_ROOM,
+  roulette: DEFAULT_SAMPLE_ROULETTE,
   items: DEFAULT_SAMPLE_ITEMS,
-  remaining_spins: DEFAULT_SAMPLE_ROOM.daily_spins,
+  remaining_spins: DEFAULT_SAMPLE_ROULETTE.daily_spins,
   is_valid_period: true,
 };
 
@@ -22,54 +22,59 @@ export default function HomePage() {
   const [showItemsModal, setShowItemsModal] = useState(false);
 
   // 기본 룰렛 로드
-  const loadRoom = async () => {
-    const lastRoomId = typeof window !== 'undefined' ? localStorage.getItem('vr_last_room_id') : null;
-    let targetId = lastRoomId;
+  const loadRoulette = async () => {
+    const lastRouletteId =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('vr_last_roulette_id')
+        : null;
+    let targetId = lastRouletteId;
 
     if (!targetId) {
       try {
-        const res = await fetch('/api/rooms', { cache: 'no-store' });
+        const res = await fetch('/api/roulette', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data?.rooms?.length > 0) {
-            targetId = data.rooms[0].id;
+          const list = data?.roulettes;
+          if (list?.length > 0) {
+            targetId = list[0].id;
           }
         }
       } catch (err) {
-        console.warn('Failed to fetch rooms list:', err);
+        console.warn('Failed to fetch roulettes list:', err);
       }
     }
 
     try {
-      let data = targetId ? await getRouletteRoom(targetId) : null;
+      let data = targetId ? await getRouletteData(targetId) : null;
       if (!data) {
-        data = await getRouletteRoom(DEFAULT_SAMPLE_ROOM.id);
+        data = await getRouletteData(DEFAULT_SAMPLE_ROULETTE.id);
       }
       if (data) {
         setState(data);
       }
     } catch (err) {
-      console.warn('Failed to load roulette room:', err);
+      console.warn('Failed to load roulette:', err);
     }
   };
 
   useEffect(() => {
-    loadRoom();
+    loadRoulette();
   }, []);
 
   // 룰렛 스핀 종료 시
   const handleSpinEnd = async (winnerItem: RouletteItem) => {
     if (!state) return;
+    const roulette = state.roulette || DEFAULT_SAMPLE_ROULETTE;
 
     // 스핀 횟수 1회 차감
-    const nextRemaining = await consumeSpin(state.room.id);
+    const nextRemaining = await consumeSpin(roulette.id);
     setState((prev) => ({ ...prev, remaining_spins: nextRemaining }));
 
     setWinner(winnerItem);
     setShowResultModal(true);
   };
 
-  const room = state?.room || DEFAULT_SAMPLE_ROOM;
+  const roulette = state?.roulette || DEFAULT_SAMPLE_ROULETTE;
   const items = state?.items || [];
   const remaining = state?.remaining_spins ?? 0;
   const isValidPeriod = state?.is_valid_period ?? true;
@@ -85,16 +90,15 @@ export default function HomePage() {
             <span>두근두근</span>
           </div>
           <h2 className="text-base sm:text-xl font-black text-gray-800 tracking-tight leading-snug">
-            {room.title}
+            {roulette.title}
           </h2>
 
           {/* 남은 스핀 뱃지 */}
           <div className="mt-0.5 sm:mt-2 flex items-center justify-center">
             <div
-              className={`px-3 sm:px-4 py-0.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-inner ${remaining > 0
-                ? 'bg-pink-100 text-pink-700'
-                : 'bg-gray-100 text-gray-500'
-                }`}
+              className={`px-3 sm:px-4 py-0.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-inner ${
+                remaining > 0 ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-500'
+              }`}
             >
               <Clock className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
               <span>
@@ -138,13 +142,14 @@ export default function HomePage() {
         onClose={() => setShowResultModal(false)}
         winnerItem={winner}
         remainingSpins={remaining}
+        rouletteId={roulette.id}
       />
 
       {/* 룰렛 전체 항목 다이얼로그 모달 */}
       <ItemListModal
         isOpen={showItemsModal}
         onClose={() => setShowItemsModal(false)}
-        roomTitle={room.title}
+        rouletteTitle={roulette.title}
         items={items}
       />
     </div>

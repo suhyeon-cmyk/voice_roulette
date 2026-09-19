@@ -1,6 +1,6 @@
 export type ResetMode = 'daily' | 'total' | 'infinite';
 
-export interface RouletteRoom {
+export interface RouletteData {
   id: string;
   title: string;
   reset_mode: ResetMode;
@@ -19,7 +19,6 @@ export interface RouletteRoom {
 export interface RouletteItem {
   id: string;
   roulette_id: string;
-  room_id?: string;
   title: string;
   probability: number;      // 백분율 (0 ~ 100)
   audio_url?: string;       // 오디오 파일 URL 또는 Blob Data URL
@@ -31,7 +30,7 @@ export interface RouletteItem {
 }
 
 export interface RouletteState {
-  room: RouletteRoom;
+  roulette: RouletteData;
   items: RouletteItem[];
   remaining_spins: number;
   is_valid_period: boolean;

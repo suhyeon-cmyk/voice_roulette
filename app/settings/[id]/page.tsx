@@ -4,18 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import SettingsForm from '@/components/SettingsForm';
-import { getRouletteRoom } from '@/lib/storage';
-import { RouletteRoom, RouletteItem } from '@/types/roulette';
+import { getRouletteData } from '@/lib/storage';
+import { RouletteData, RouletteItem } from '@/types/roulette';
 import { Sparkles, Lock, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
-export default function RoomSettingsWithPasswordPage() {
+export default function RouletteSettingsWithPasswordPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const roomId = params?.id as string;
+  const rouletteId = params?.id as string;
   const urlKey = searchParams.get('key') || '';
 
-  const [room, setRoom] = useState<RouletteRoom | null>(null);
+  const [roulette, setRoulette] = useState<RouletteData | null>(null);
   const [items, setItems] = useState<RouletteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [password, setPassword] = useState('');
@@ -24,25 +24,26 @@ export default function RoomSettingsWithPasswordPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!rouletteId) return;
 
     // 기존 세션스토리지에 남아있던 인증 캐시가 있다면 완전 제거
     if (typeof window !== 'undefined') {
       try {
-        sessionStorage.removeItem(`vr_auth_${roomId}`);
-      } catch { }
+        sessionStorage.removeItem(`vr_auth_${rouletteId}`);
+      } catch {}
     }
 
     const loadData = async () => {
       setLoading(true);
-      const data = await getRouletteRoom(roomId);
+      const data = await getRouletteData(rouletteId);
       if (data) {
-        setRoom(data.room);
+        const r = data.roulette;
+        setRoulette(r);
         setItems(data.items);
 
         // URL 파라미터로 관리자 키가 직접 전달된 경우에만 즉시 인증 (?key=...)
         const defaultSettingsPassword = process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234';
-        const expectedKey = data.room.edit_key || defaultSettingsPassword;
+        const expectedKey = r.edit_key || defaultSettingsPassword;
         if (urlKey && urlKey === expectedKey) {
           setIsAuthorized(true);
         }
@@ -51,16 +52,16 @@ export default function RoomSettingsWithPasswordPage() {
     };
 
     loadData();
-  }, [roomId, urlKey]);
+  }, [rouletteId, urlKey]);
 
   const handleVerifyPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!room) return;
+    if (!roulette) return;
 
     const defaultSettingsPassword = process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234';
     const trimmed = password.trim();
-    // 방에 저장된 비밀번호(edit_key)와만 정확히 일치해야 함 (미설정 시 기본 설정 비밀번호)
-    const expectedKey = room.edit_key || defaultSettingsPassword;
+    // 룰렛에 저장된 비밀번호(edit_key)와만 정확히 일치해야 함
+    const expectedKey = roulette.edit_key || defaultSettingsPassword;
     if (trimmed && trimmed === expectedKey) {
       setIsAuthorized(true);
       setErrorMessage('');
@@ -78,7 +79,7 @@ export default function RoomSettingsWithPasswordPage() {
     );
   }
 
-  if (!room) {
+  if (!roulette) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center min-h-[80vh] animate-fade-in">
         <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-200/70 text-rose-500 flex items-center justify-center mb-4 shadow-sm">
@@ -125,7 +126,7 @@ export default function RoomSettingsWithPasswordPage() {
 
             <div className="flex flex-col gap-1 w-full">
               <span className="text-[11px] font-bold text-pink-500 bg-pink-100/70 py-0.5 px-2.5 rounded-full mx-auto">
-                {room.title}
+                {roulette.title}
               </span>
               <h3 className="text-lg font-black text-gray-800 mt-1">설정 변경</h3>
             </div>
@@ -168,7 +169,7 @@ export default function RoomSettingsWithPasswordPage() {
             </form>
 
             <Link
-              href={`/game/${roomId}`}
+              href={`/game/${rouletteId}`}
               className="text-xs font-bold text-pink-500 hover:text-pink-600 hover:underline pt-1"
             >
               ← 돌아가서 룰렛 플레이하기
@@ -184,7 +185,7 @@ export default function RoomSettingsWithPasswordPage() {
     <div className="flex-1 flex flex-col items-center justify-between pb-12">
       <main className="w-full">
         <SettingsForm
-          initialRoom={room}
+          initialRoulette={roulette}
           initialItems={items}
           isEditMode={true}
         />

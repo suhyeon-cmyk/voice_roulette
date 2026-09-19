@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const roomId = (formData.get('roomId') as string) || 'common';
+    const rouletteId = (formData.get('rouletteId') as string) || 'common';
     const itemId = (formData.get('itemId') as string) || 'item';
 
     if (!file) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       }
 
       const ext = file.name?.split('.').pop() || (file.type.includes('mp4') ? 'm4a' : 'webm');
-      const safeFileName = `${roomId}_${itemId}_${Date.now()}.${ext}`;
+      const safeFileName = `${rouletteId}_${itemId}_${Date.now()}.${ext}`;
       const filePath = path.join(uploadsDir, safeFileName);
 
       fs.writeFileSync(filePath, buffer);

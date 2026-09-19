@@ -12,7 +12,7 @@ interface ResultModalProps {
   winnerItem: RouletteItem | null;
   remainingSpins: number;
   isTestMode?: boolean;
-  roomId?: string;
+  rouletteId?: string;
   editKey?: string;
 }
 
@@ -22,13 +22,15 @@ export default function ResultModal({
   winnerItem,
   remainingSpins,
   isTestMode = false,
-  roomId,
+  rouletteId,
   editKey,
 }: ResultModalProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [hasListened, setHasListened] = useState(false);
   const [audioError, setAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const targetRouletteId = rouletteId;
 
   useEffect(() => {
     if (!isOpen || !winnerItem) {
@@ -200,9 +202,9 @@ export default function ResultModal({
               </button>
 
               {/* 테스트 모드일 때 설정으로 돌아가기 버튼 제공 (비밀번호 자동 인증 키 전달) */}
-              {isTestMode && roomId && (
+              {isTestMode && targetRouletteId && (
                 <Link
-                  href={`/settings/${roomId}${editKey ? `?key=${editKey}` : ''}`}
+                  href={`/settings/${targetRouletteId}${editKey ? `?key=${editKey}` : ''}`}
                   className="w-full py-2.5 rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
                   <Settings className="w-3.5 h-3.5" />

@@ -6,13 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 export default function RedirectToGamePage() {
   const params = useParams();
   const router = useRouter();
-  const roomId = params?.id as string;
+  const rouletteId = params?.id as string;
 
   useEffect(() => {
-    if (roomId) {
-      router.replace(`/game/${roomId}`);
+    if (rouletteId) {
+      router.replace(`/game/${rouletteId}`);
     }
-  }, [roomId, router]);
+  }, [rouletteId, router]);
 
   return null;
 }

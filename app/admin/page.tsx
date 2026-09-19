@@ -30,10 +30,10 @@ import {
   Zap,
   X,
 } from 'lucide-react';
-import { RouletteRoom, RouletteItem } from '@/types/roulette';
+import { RouletteData, RouletteItem } from '@/types/roulette';
 
-interface AdminRoomStats {
-  room: RouletteRoom;
+interface AdminRouletteStats {
+  roulette: RouletteData;
   items: RouletteItem[];
   itemCount: number;
   audioCount: number;
@@ -43,9 +43,9 @@ interface AdminRoomStats {
 }
 
 interface AdminDashboardData {
-  rooms: AdminRoomStats[];
+  roulettes: AdminRouletteStats[];
   stats: {
-    totalRooms: number;
+    totalRoulettes: number;
     totalItems: number;
     totalAudios: number;
     totalActiveSpins: number;
@@ -71,7 +71,7 @@ export default function SuperAdminPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [deleteTargetRoom, setDeleteTargetRoom] = useState<RouletteRoom | null>(null);
+  const [deleteTargetRoulette, setDeleteTargetRoulette] = useState<RouletteData | null>(null);
 
   // 4. 마스터 관리자 비밀번호 변경 모달 상태
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState<boolean>(false);
@@ -146,16 +146,16 @@ export default function SuperAdminPage() {
     }
   }, []);
 
-  // 방 목록 데이터 불러오기
+  // 룰렛 목록 데이터 불러오기
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/rooms', { cache: 'no-store' });
+      const res = await fetch('/api/admin/roulette', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         setData(json);
       } else {
-        console.error('Failed to load admin rooms');
+        console.error('Failed to load admin roulettes');
       }
     } catch (e) {
       console.error('Error fetching admin data:', e);
@@ -222,18 +222,18 @@ export default function SuperAdminPage() {
   };
 
   // 비밀번호 표시 토글
-  const toggleKeyVisibility = (roomId: string) => {
+  const toggleKeyVisibility = (rouletteId: string) => {
     setVisibleKeyIds((prev) => ({
       ...prev,
-      [roomId]: !prev[roomId],
+      [rouletteId]: !prev[rouletteId],
     }));
   };
 
   // 스핀 조정 액션 (PATCH)
-  const handleAdjustSpin = async (roomId: string, action: 'adjust_bonus' | 'consume' | 'reset_spins', delta = 0) => {
-    setActionLoadingId(roomId);
+  const handleAdjustSpin = async (rouletteId: string, action: 'adjust_bonus' | 'consume' | 'reset_spins', delta = 0) => {
+    setActionLoadingId(rouletteId);
     try {
-      const res = await fetch(`/api/rooms/${roomId}`, {
+      const res = await fetch(`/api/roulette/${rouletteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, delta }),
@@ -250,18 +250,18 @@ export default function SuperAdminPage() {
     }
   };
 
-  // 방 삭제 액션 (DELETE)
-  const handleDeleteRoom = async () => {
-    if (!deleteTargetRoom) return;
-    const roomId = deleteTargetRoom.id;
-    setActionLoadingId(roomId);
+  // 룰렛 삭제 액션 (DELETE)
+  const handleDeleteRoulette = async () => {
+    if (!deleteTargetRoulette) return;
+    const rouletteId = deleteTargetRoulette.id;
+    setActionLoadingId(rouletteId);
 
     try {
-      const res = await fetch(`/api/rooms/${roomId}`, {
+      const res = await fetch(`/api/roulette/${rouletteId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
-        setDeleteTargetRoom(null);
+        setDeleteTargetRoulette(null);
         await fetchDashboardData();
       } else {
         alert('룰렛 삭제 중 오류가 발생했습니다.');
@@ -274,33 +274,41 @@ export default function SuperAdminPage() {
   };
 
   // 필터링 및 정렬 연산
-  const filteredRooms = useMemo(() => {
-    if (!data?.rooms) return [];
-    let list = [...data.rooms];
+  const filteredRoulettes = useMemo(() => {
+    const listSrc = data?.roulettes;
+    if (!listSrc) return [];
+    let list = [...listSrc];
 
     // 1. 검색어 필터
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.room.title.toLowerCase().includes(q) ||
-          r.room.id.toLowerCase().includes(q) ||
-          r.room.edit_key?.toLowerCase().includes(q)
-      );
+      list = list.filter((r) => {
+        const itemRoulette = r.roulette;
+        return (
+          itemRoulette.title.toLowerCase().includes(q) ||
+          itemRoulette.id.toLowerCase().includes(q) ||
+          itemRoulette.edit_key?.toLowerCase().includes(q)
+        );
+      });
     }
 
     // 2. 모드 필터
     if (modeFilter !== 'all') {
-      list = list.filter((r) => r.room.reset_mode === modeFilter);
+      list = list.filter((r) => {
+        const itemRoulette = r.roulette;
+        return itemRoulette.reset_mode === modeFilter;
+      });
     }
 
     // 3. 정렬
     list.sort((a, b) => {
+      const aR = a.roulette;
+      const bR = b.roulette;
       if (sortBy === 'newest') {
-        return new Date(b.room.created_at).getTime() - new Date(a.room.created_at).getTime();
+        return new Date(bR.created_at).getTime() - new Date(aR.created_at).getTime();
       }
       if (sortBy === 'oldest') {
-        return new Date(a.room.created_at).getTime() - new Date(b.room.created_at).getTime();
+        return new Date(aR.created_at).getTime() - new Date(bR.created_at).getTime();
       }
       if (sortBy === 'spins') {
         return b.remaining_spins - a.remaining_spins;
@@ -309,7 +317,7 @@ export default function SuperAdminPage() {
         return b.itemCount - a.itemCount;
       }
       if (sortBy === 'title') {
-        return a.room.title.localeCompare(b.room.title);
+        return aR.title.localeCompare(bR.title);
       }
       return 0;
     });
@@ -361,22 +369,23 @@ export default function SuperAdminPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer"
-                title={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'}
+                title={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
             {authError && (
-              <p className="text-xs font-bold text-rose-300 bg-rose-500/20 py-2 px-3 rounded-xl border border-rose-500/30 animate-shake">
-                {authError}
-              </p>
+              <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-2xl text-xs font-bold text-rose-300 flex items-center justify-center gap-1.5 animate-shake">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{authError}</span>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full py-3 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-98 cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-pink-500/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-1"
             >
               {authLoading ? (
                 <>
@@ -386,7 +395,7 @@ export default function SuperAdminPage() {
               ) : (
                 <>
                   <KeyRound className="w-4 h-4" />
-                  <span>관리자 콘솔 접속 ✨</span>
+                  <span>마스터 콘솔 진입하기</span>
                 </>
               )}
             </button>
@@ -486,10 +495,10 @@ export default function SuperAdminPage() {
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-pink-400" />
-              <span>총 룰렛 방</span>
+              <span>총 룰렛 수</span>
             </span>
             <span className="text-2xl font-black text-white">
-              {data?.stats?.totalRooms ?? 0}
+              {data?.stats?.totalRoulettes ?? 0}
               <span className="text-xs font-normal text-slate-400 ml-1">개</span>
             </span>
           </div>
@@ -519,7 +528,7 @@ export default function SuperAdminPage() {
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-emerald-400" />
-              <span>활성 잔여 스핀 총합</span>
+              <span>전체 활성 잔여 스핀</span>
             </span>
             <span className="text-2xl font-black text-white">
               {data?.stats?.totalActiveSpins ?? 0}
@@ -528,126 +537,140 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        {/* 3. 검색 및 필터 툴바 */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+        {/* 3. 검색 / 필터 / 정렬 컨트롤 바 */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* 검색창 */}
-          <div className="relative flex-1 min-w-[200px] sm:min-w-[280px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="룰렛 제목, ID, 관리자 비밀번호 검색..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-pink-400"
+              placeholder="룰렛 제목, 룰렛 ID, 설정 비밀번호 검색..."
+              className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 transition-colors"
             />
           </div>
 
-          {/* 모드 필터 */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={modeFilter}
-              onChange={(e) => setModeFilter(e.target.value as any)}
-              className="px-2.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer"
-            >
-              <option value="all">모든 모드</option>
-              <option value="daily">매일 리셋 (daily)</option>
-              <option value="total">전체 횟수제 (total)</option>
-              <option value="infinite">무제한 (infinite)</option>
-            </select>
-          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 리셋 모드 필터 */}
+            <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
+              <Filter className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
+              {(
+                [
+                  { key: 'all', label: '전체 모드' },
+                  { key: 'daily', label: '매일' },
+                  { key: 'total', label: '전체' },
+                  { key: 'infinite', label: '무제한 ∞' },
+                ] as const
+              ).map((mode) => (
+                <button
+                  key={mode.key}
+                  type="button"
+                  onClick={() => setModeFilter(mode.key)}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    modeFilter === mode.key
+                      ? 'bg-pink-500 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
 
-          {/* 정렬 셀렉트 */}
-          <div className="flex items-center gap-1.5">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-2.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer"
-            >
-              <option value="newest">최신 등록순</option>
-              <option value="oldest">오래된 순</option>
-              <option value="spins">잔여 스핀 많은순</option>
-              <option value="items">아이템 많은순</option>
-              <option value="title">제목 가나다순</option>
-            </select>
+            {/* 정렬 드롭다운 */}
+            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+              >
+                <option value="newest" className="bg-slate-900">최신 생성순</option>
+                <option value="oldest" className="bg-slate-900">오래된 순</option>
+                <option value="spins" className="bg-slate-900">잔여 스핀 많은순</option>
+                <option value="items" className="bg-slate-900">아이템 많은순</option>
+                <option value="title" className="bg-slate-900">제목 가나다순</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* 4. 룰렛 방 리스트 */}
+        {/* 4. 등록된 룰렛 카드 목록 */}
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
+          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
             <span>
-              검색된 룰렛: <strong className="text-white">{filteredRooms.length}</strong>개
+              검색 결과: <strong className="text-pink-400">{filteredRoulettes.length}</strong>개의 룰렛
             </span>
-            <span>최신 데이터 실시간 동기화 완료</span>
           </div>
 
-          {filteredRooms.length === 0 ? (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center gap-3">
-              <AlertTriangle className="w-10 h-10 text-slate-500" />
-              <p className="text-sm font-bold text-slate-300">일치하는 룰렛 설정이 없습니다.</p>
-              <p className="text-xs text-slate-500">검색어를 변경하거나 새로운 룰렛을 등록해보세요.</p>
-              <Link
-                href="/settings"
-                target="_blank"
-                className="mt-2 px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold"
-              >
-                + 새 룰렛 등록하기
-              </Link>
+          {filteredRoulettes.length === 0 ? (
+            <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center gap-3">
+              <Sparkles className="w-10 h-10 text-slate-600" />
+              <h3 className="text-base font-bold text-slate-300">등록된 룰렛이 없습니다.</h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                사용자가 생성한 룰렛이 없거나 검색 필터 조건과 일치하는 항목이 없습니다.
+              </p>
             </div>
           ) : (
-            filteredRooms.map((roomStat) => {
-              const { room, items, itemCount, audioCount, remaining_spins, totalProbability } = roomStat;
-              const isKeyVisible = Boolean(visibleKeyIds[room.id]);
-              const isActionLoading = actionLoadingId === room.id;
+            filteredRoulettes.map((item) => {
+              const roulette = item.roulette;
+              const { items, itemCount, audioCount, totalProbability, remaining_spins, is_valid_period } = item;
+              const isKeyVisible = visibleKeyIds[roulette.id];
+              const isActionLoading = actionLoadingId === roulette.id;
 
               return (
                 <div
-                  key={room.id}
-                  className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 sm:p-6 transition-all shadow-md flex flex-col gap-4"
+                  key={roulette.id}
+                  className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 sm:p-6 flex flex-col gap-4 shadow-sm transition-all relative overflow-hidden"
                 >
-                  {/* 카드 상단: 방 제목, 태그, 등록일시 */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+                  {/* 카드 상단: 룰렛 타이틀, ID 복사, 리셋 주기 뱃지 */}
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800/80 pb-4">
+                    <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base sm:text-lg font-black text-white">
-                          {room.title}
-                        </span>
+                        <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                          {roulette.title}
+                        </h2>
 
                         {/* 리셋 모드 뱃지 */}
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                          {room.reset_mode === 'daily'
-                            ? '매일 리셋'
-                            : room.reset_mode === 'total'
-                            ? '전체 횟수제'
-                            : '무제한'}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                          {roulette.reset_mode === 'daily'
+                            ? `매일 리셋 (${roulette.daily_spins}회)`
+                            : roulette.reset_mode === 'total'
+                            ? `전체 횟수제 (${roulette.total_spins}회)`
+                            : '무제한 모드 ∞'}
                         </span>
 
-                        {/* 확률 유효 뱃지 */}
+                        {/* 확률 합계 뱃지 */}
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                             totalProbability === 100
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                              : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                           }`}
                         >
-                          확률 {totalProbability}%
+                          확률 합계: {totalProbability}%
                         </span>
+
+                        {/* 기간 유효성 뱃지 */}
+                        {!is_valid_period && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                            기간 만료/대기
+                          </span>
+                        )}
                       </div>
 
-                      {/* 룸 ID & 복사 */}
                       <div className="flex items-center gap-2 text-xs text-slate-400">
                         <span className="font-mono text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-700/60">
-                          ID: {room.id}
+                          ID: {roulette.id}
                         </span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(room.id, `id_${room.id}`)}
+                          onClick={() => copyToClipboard(roulette.id, `id_${roulette.id}`)}
                           className="hover:text-white p-0.5 rounded cursor-pointer transition-colors"
-                          title="룸 ID 복사"
+                          title="룰렛 ID 복사"
                         >
-                          {copiedId === `id_${room.id}` ? (
+                          {copiedId === `id_${roulette.id}` ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
@@ -660,12 +683,12 @@ export default function SuperAdminPage() {
                     <div className="text-[11px] text-slate-400 flex flex-col items-end gap-0.5">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-slate-500" />
-                        생성: {new Date(room.created_at).toLocaleDateString()} {new Date(room.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        생성: {new Date(roulette.created_at).toLocaleDateString()} {new Date(roulette.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {room.updated_at && (
+                      {roulette.updated_at && (
                         <span className="flex items-center gap-1 text-[10px] text-slate-500">
                           <Clock className="w-2.5 h-2.5" />
-                          수정: {new Date(room.updated_at).toLocaleDateString()} {new Date(room.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          수정: {new Date(roulette.updated_at).toLocaleDateString()} {new Date(roulette.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
                     </div>
@@ -673,19 +696,19 @@ export default function SuperAdminPage() {
 
                   {/* 카드 중간: 비밀번호 + 스핀 현황 및 빠른 조작 바 */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-                    {/* 1) 룸 비밀번호 (edit_key) */}
+                    {/* 1) 룰렛 비밀번호 (edit_key) */}
                     <div className="flex flex-col gap-1.5 justify-center">
                       <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                         <KeyRound className="w-3.5 h-3.5 text-pink-400" />
-                        <span>관리자 비밀번호 (개별 룰렛 설정키)</span>
+                        <span>설정 비밀번호 (개별 룰렛 설정키)</span>
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700 min-w-[80px] text-center">
-                          {isKeyVisible ? room.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234' : '••••••••'}
+                          {isKeyVisible ? roulette.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234' : '••••••••'}
                         </span>
                         <button
                           type="button"
-                          onClick={() => toggleKeyVisibility(room.id)}
+                          onClick={() => toggleKeyVisibility(roulette.id)}
                           className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg cursor-pointer transition-colors"
                           title={isKeyVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
                         >
@@ -693,11 +716,11 @@ export default function SuperAdminPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(room.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234', `key_${room.id}`)}
+                          onClick={() => copyToClipboard(roulette.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234', `key_${roulette.id}`)}
                           className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg cursor-pointer transition-colors"
                           title="비밀번호 복사"
                         >
-                          {copiedId === `key_${room.id}` ? (
+                          {copiedId === `key_${roulette.id}` ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
@@ -715,7 +738,7 @@ export default function SuperAdminPage() {
                           <strong className="text-white text-xs">{remaining_spins}회</strong>
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          (기본 {room.daily_spins || room.total_spins} / 사용 {room.used_spins || 0} / 보너스 {room.bonus_spins || 0})
+                          (기본 {roulette.daily_spins || roulette.total_spins} / 사용 {roulette.used_spins || 0} / 보너스 {roulette.bonus_spins || 0})
                         </span>
                       </div>
 
@@ -726,7 +749,7 @@ export default function SuperAdminPage() {
                             key={delta}
                             type="button"
                             disabled={isActionLoading}
-                            onClick={() => handleAdjustSpin(room.id, 'adjust_bonus', delta)}
+                            onClick={() => handleAdjustSpin(roulette.id, 'adjust_bonus', delta)}
                             className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ${
                               delta > 0
                                 ? 'bg-pink-500/15 hover:bg-pink-500/30 text-pink-300 border-pink-500/30'
@@ -740,7 +763,7 @@ export default function SuperAdminPage() {
                         <button
                           type="button"
                           disabled={isActionLoading}
-                          onClick={() => handleAdjustSpin(room.id, 'consume')}
+                          onClick={() => handleAdjustSpin(roulette.id, 'consume')}
                           className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ml-auto"
                           title="룰렛 1회 돌린 것으로 처리 (사용 스핀 +1)"
                         >
@@ -750,7 +773,7 @@ export default function SuperAdminPage() {
                         <button
                           type="button"
                           disabled={isActionLoading}
-                          onClick={() => handleAdjustSpin(room.id, 'reset_spins')}
+                          onClick={() => handleAdjustSpin(roulette.id, 'reset_spins')}
                           className="px-2 py-1 bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
                           title="사용 스핀과 보너스를 초기 상태(0)로 리셋"
                         >
@@ -761,70 +784,65 @@ export default function SuperAdminPage() {
                     </div>
                   </div>
 
-                  {/* 카드 하단: 등록 항목 태그 리스트 미리보기 */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <Percent className="w-3 h-3 text-pink-400" />
-                        <span>아이템 목록 ({itemCount}개, 음성 {audioCount}개)</span>
+                  {/* 카드 하단 1: 아이템 리스트 프리뷰 */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span className="font-bold flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                        <span>항목 목록 ({itemCount}개)</span>
                       </span>
-                    </span>
+                      <span className="text-[11px] text-purple-300">
+                        음성 녹음: {audioCount} / {itemCount}개
+                      </span>
+                    </div>
 
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                       {items.map((it, idx) => (
-                        <span
+                        <div
                           key={it.id || idx}
-                          style={{ borderColor: it.color || '#FFB5C5' }}
-                          className="px-2.5 py-1 rounded-xl bg-slate-800/80 border text-xs text-slate-200 flex items-center gap-1.5 shadow-2xs"
+                          className="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-slate-800 text-xs overflow-hidden"
+                          style={{ borderLeftColor: it.color || '#FFB5C5', borderLeftWidth: '4px' }}
                         >
-                          <span
-                            style={{ backgroundColor: it.color || '#FFB5C5' }}
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                          />
-                          <span className="font-semibold truncate max-w-[120px]">
+                          <span className="truncate text-slate-200 font-medium" title={it.title}>
                             {it.title || '(무제)'}
                           </span>
-                          <span className="text-[10px] text-pink-400 font-bold">
-                            {it.probability}%
-                          </span>
-                          {it.audio_url && (
-                            <span title="음성 녹음 있음" className="flex items-center">
-                              <Volume2 className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                            </span>
-                          )}
-                        </span>
+                          <div className="flex items-center gap-1 shrink-0 ml-1.5 text-[11px] text-slate-400">
+                            <span>{it.probability}%</span>
+                            {it.audio_url && <Volume2 className="w-3 h-3 text-purple-400 shrink-0" />}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* 카드 액션 툴바: 플레이, 테스트, 설정 수정, 룰렛 삭제 */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+                  {/* 카드 하단 2: 실행 및 수정/삭제 액션 버튼 바 */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* 1) 일반 플레이 (스핀 소모) */}
+                      {/* 1) 일반 플레이 실행 */}
                       <Link
-                        href={`/game/${room.id}`}
+                        href={`/game/${roulette.id}`}
                         target="_blank"
-                        className="px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
-                        title="일반 룰렛 게임 플레이 (스핀 소모)"
+                        className="px-3.5 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+                        title="실제 플레이 화면 새 탭 열기 (스핀 1회 소모)"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>🎮 플레이 실행</span>
                       </Link>
 
-                      {/* 2) 테스트 플레이 (스핀 미소모) */}
+                      {/* 2) 무제한 테스트 모드 실행 */}
                       <Link
-                        href={`/game/${room.id}?mode=test`}
+                        href={`/game/${roulette.id}?mode=test&key=${roulette.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
                         target="_blank"
-                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
-                        title="스핀 소모 없는 무제한 테스트 모드"
+                        className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+                        title="스핀 소모 없는 관리자 테스트 모드 실행"
                       >
                         <FlaskConical className="w-3.5 h-3.5" />
                         <span>🧪 테스트 모드</span>
                       </Link>
 
-                      {/* 3) 설정 수정 (관리자 키 자동 전달로 비밀번호 프리패스) */}
+                      {/* 3) 설정 수정 */}
                       <Link
-                        href={`/settings/${room.id}?key=${room.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
+                        href={`/settings/${roulette.id}?key=${roulette.edit_key || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
                         target="_blank"
                         className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700"
                         title="해당 룰렛의 세팅 화면으로 바로 이동 (비밀번호 자동 인증)"
@@ -838,7 +856,7 @@ export default function SuperAdminPage() {
                     <button
                       type="button"
                       disabled={isActionLoading}
-                      onClick={() => setDeleteTargetRoom(room)}
+                      onClick={() => setDeleteTargetRoulette(roulette)}
                       className="px-3 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                       title="이 룰렛과 연결된 모든 아이템 삭제"
                     >
@@ -854,7 +872,7 @@ export default function SuperAdminPage() {
       </main>
 
       {/* 삭제 확인 모달 */}
-      {deleteTargetRoom && (
+      {deleteTargetRoulette && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col items-center gap-4 text-center shadow-2xl animate-fade-in">
             <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
@@ -864,7 +882,7 @@ export default function SuperAdminPage() {
             <div className="flex flex-col gap-1">
               <h3 className="text-base font-black text-white">룰렛 삭제 확인</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                정말로 <strong className="text-pink-400">'{deleteTargetRoom.title}'</strong> 룰렛을 완전히 삭제하시겠습니까?
+                정말로 <strong className="text-pink-400">'{deleteTargetRoulette.title}'</strong> 룰렛을 완전히 삭제하시겠습니까?
               </p>
               <p className="text-[11px] text-rose-400 mt-1">
                 ⚠️ 삭제된 룰렛과 항목, 음성 데이터는 복구할 수 없습니다.
@@ -874,14 +892,14 @@ export default function SuperAdminPage() {
             <div className="flex items-center gap-2 w-full mt-2">
               <button
                 type="button"
-                onClick={() => setDeleteTargetRoom(null)}
+                onClick={() => setDeleteTargetRoulette(null)}
                 className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 취소
               </button>
               <button
                 type="button"
-                onClick={handleDeleteRoom}
+                onClick={handleDeleteRoulette}
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
               >
                 삭제하기

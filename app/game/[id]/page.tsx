@@ -6,60 +6,61 @@ import RouletteWheel from '@/components/RouletteWheel';
 import ResultModal from '@/components/ResultModal';
 import ItemListModal from '@/components/ItemListModal';
 import { RouletteItem, RouletteState } from '@/types/roulette';
-import { consumeSpin, getRouletteRoom, DEFAULT_SAMPLE_ROOM, DEFAULT_SAMPLE_ITEMS } from '@/lib/storage';
-import { Heart, Sparkles, Clock, AlertCircle, FlaskConical, Settings } from 'lucide-react';
+import { consumeSpin, getRouletteData, DEFAULT_SAMPLE_ROULETTE, DEFAULT_SAMPLE_ITEMS } from '@/lib/storage';
+import { Sparkles, Clock, AlertCircle, FlaskConical, Settings } from 'lucide-react';
 import Link from 'next/link';
 
-function GamePlayRoomContent() {
+function GamePlayContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const roomId = params?.id as string;
+  const rouletteId = params?.id as string;
   const isTestMode = searchParams.get('mode') === 'test';
 
   const [state, setState] = useState<RouletteState | null>(() => {
-    if (roomId === DEFAULT_SAMPLE_ROOM.id) {
+    if (rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
       return {
-        room: DEFAULT_SAMPLE_ROOM,
+        roulette: DEFAULT_SAMPLE_ROULETTE,
         items: DEFAULT_SAMPLE_ITEMS,
-        remaining_spins: DEFAULT_SAMPLE_ROOM.daily_spins,
+        remaining_spins: DEFAULT_SAMPLE_ROULETTE.daily_spins,
         is_valid_period: true,
       };
     }
     return null;
   });
-  const [loading, setLoading] = useState(roomId !== DEFAULT_SAMPLE_ROOM.id);
+  const [loading, setLoading] = useState(rouletteId !== DEFAULT_SAMPLE_ROULETTE.id);
   const [winner, setWinner] = useState<RouletteItem | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!rouletteId) return;
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('vr_last_room_id', roomId);
+      localStorage.setItem('vr_last_roulette_id', rouletteId);
     }
 
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await getRouletteRoom(roomId);
+        const data = await getRouletteData(rouletteId);
         setState(data);
       } catch (err) {
-        console.warn('Failed to load room:', err);
+        console.warn('Failed to load roulette:', err);
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [roomId]);
+  }, [rouletteId]);
 
   const handleSpinEnd = async (winnerItem: RouletteItem) => {
     if (!state) return;
+    const roulette = state.roulette || DEFAULT_SAMPLE_ROULETTE;
 
     if (!isTestMode) {
       // 일반 플레이 시에만 1회 차감 (테스트 모드에서는 스핀 소모 없음)
-      const nextRemaining = await consumeSpin(state.room.id);
+      const nextRemaining = await consumeSpin(roulette.id);
       setState((prev) => (prev ? { ...prev, remaining_spins: nextRemaining } : null));
     }
 
@@ -106,7 +107,10 @@ function GamePlayRoomContent() {
     );
   }
 
-  const { room, items, remaining_spins: remaining, is_valid_period: isValidPeriod } = state;
+  const roulette = state.roulette || DEFAULT_SAMPLE_ROULETTE;
+  const items = state.items || [];
+  const remaining = state.remaining_spins;
+  const isValidPeriod = state.is_valid_period;
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center px-4 py-2 sm:py-6 overflow-x-hidden">
@@ -118,7 +122,7 @@ function GamePlayRoomContent() {
             <span>테스트 모드 (스핀 소모 없음)</span>
           </div>
           <Link
-            href={`/settings/${roomId}?key=${room.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
+            href={`/settings/${rouletteId}?key=${roulette.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
             className="px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 font-extrabold text-xs rounded-xl shadow-xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
           >
             <Settings className="w-3 h-3" />
@@ -132,7 +136,7 @@ function GamePlayRoomContent() {
         {/* 룰렛 타이틀 */}
         <div className="w-full pastel-card rounded-2xl sm:rounded-3xl px-3 py-2 sm:p-4 text-center flex flex-col items-center gap-0.5 sm:gap-1.5 shadow-sm">
           <h2 className="text-base sm:text-xl font-black text-gray-800 tracking-tight leading-snug">
-            {room.title}
+            {roulette.title}
           </h2>
 
           {/* 남은 스핀 뱃지 / 테스트 모드 뱃지 */}
@@ -156,7 +160,7 @@ function GamePlayRoomContent() {
                 <span>
                   남은 스핀 :{' '}
                   <strong className="text-xs sm:text-sm underline">
-                    {room.reset_mode === 'infinite' ? '무제한 ∞' : `${remaining}회`}
+                    {roulette.reset_mode === 'infinite' ? '무제한 ∞' : `${remaining}회`}
                   </strong>
                 </span>
               </div>
@@ -173,7 +177,7 @@ function GamePlayRoomContent() {
         )}
 
         {/* 스핀 소진 알림 (일반 모드이면서 무제한이 아닐 때만 표시) */}
-        {!isTestMode && room.reset_mode !== 'infinite' && remaining <= 0 && (
+        {!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0 && (
           <div className="w-full bg-pink-100/70 border border-pink-200 rounded-2xl p-3 text-pink-800 text-xs text-center leading-relaxed">
             💖 오늘의 스핀을 모두 사용했어요!
           </div>
@@ -184,8 +188,8 @@ function GamePlayRoomContent() {
           <RouletteWheel
             items={items}
             onSpinEnd={handleSpinEnd}
-            disabled={!isValidPeriod || (!isTestMode && room.reset_mode !== 'infinite' && remaining <= 0)}
-            remainingSpins={isTestMode || room.reset_mode === 'infinite' ? 999 : remaining}
+            disabled={!isValidPeriod || (!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0)}
+            remainingSpins={isTestMode || roulette.reset_mode === 'infinite' ? 999 : remaining}
             onWheelClick={() => setShowItemsModal(true)}
           />
         </div>
@@ -198,22 +202,22 @@ function GamePlayRoomContent() {
         winnerItem={winner}
         remainingSpins={remaining}
         isTestMode={isTestMode}
-        roomId={roomId}
-        editKey={room.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}
+        rouletteId={rouletteId}
+        editKey={roulette.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}
       />
 
       {/* 룰렛 전체 항목 다이얼로그 모달 */}
       <ItemListModal
         isOpen={showItemsModal}
         onClose={() => setShowItemsModal(false)}
-        roomTitle={room.title}
+        rouletteTitle={roulette.title}
         items={items}
       />
     </div>
   );
 }
 
-export default function GamePlayRoomPage() {
+export default function GamePlayRoulettePage() {
   return (
     <Suspense
       fallback={
@@ -223,7 +227,7 @@ export default function GamePlayRoomPage() {
         </div>
       }
     >
-      <GamePlayRoomContent />
+      <GamePlayContent />
     </Suspense>
   );
 }

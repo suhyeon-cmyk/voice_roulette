@@ -2,19 +2,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Copy, Check, Heart, Key, Share2, X, ExternalLink, Sparkles } from 'lucide-react';
+import { Copy, Check, Heart, Key, Share2, X, Sparkles } from 'lucide-react';
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roomId: string;
+  rouletteId: string;
   editKey?: string;
 }
 
 export default function ShareModal({
   isOpen,
   onClose,
-  roomId,
+  rouletteId,
   editKey,
 }: ShareModalProps) {
   const [copiedPlay, setCopiedPlay] = useState(false);
@@ -22,9 +22,10 @@ export default function ShareModal({
 
   if (!isOpen) return null;
 
+  const targetId = rouletteId || '';
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const playUrl = `${origin}/game/${roomId}`;
-  const settingsUrl = `${origin}/settings/${roomId}`;
+  const playUrl = `${origin}/game/${targetId}`;
+  const settingsUrl = `${origin}/settings/${targetId}`;
 
   const copyToClipboard = async (text: string, type: 'play' | 'settings') => {
     let success = false;
@@ -183,7 +184,7 @@ export default function ShareModal({
         {/* 하단 버튼 영역 */}
         <div className="flex items-center gap-2">
           <Link
-            href={`/game/${roomId}?mode=test&key=${editKey || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
+            href={`/game/${targetId}?mode=test&key=${editKey || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
           >

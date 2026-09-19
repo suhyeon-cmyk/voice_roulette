@@ -1,19 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Header from './Header';
 import AudioRecorder from './AudioRecorder';
 import ShareModal from './ShareModal';
 import ColorPickerModal from './ColorPickerModal';
 import defaultItemSuggestions from '@/data/suggestions.json';
-import { RouletteItem, RouletteRoom, ResetMode } from '@/types/roulette';
+import { RouletteItem, RouletteData, ResetMode } from '@/types/roulette';
 import {
   adjustBonusSpins,
   calculateRemainingSpins,
   generateUUID,
   PASTEL_PALETTE,
-  saveRouletteRoom,
+  saveRouletteData,
   uploadAudioFile,
 } from '@/lib/storage';
 import {
@@ -38,38 +37,38 @@ import {
 } from 'lucide-react';
 
 interface SettingsFormProps {
-  initialRoom?: RouletteRoom;
+  initialRoulette?: RouletteData;
   initialItems?: RouletteItem[];
   isEditMode?: boolean;
 }
 
 export default function SettingsForm({
-  initialRoom,
+  initialRoulette,
   initialItems,
   isEditMode = false,
 }: SettingsFormProps) {
-  const router = useRouter();
+  const targetInitial = initialRoulette;
 
-  // 1. 룰렛 방 기본 상태
+  // 1. 룰렛 기본 상태
   const defaultInitialPassword = process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234';
-  const [roomId] = useState<string>(initialRoom?.id || generateUUID());
-  const [editKey, setEditKey] = useState<string>(initialRoom?.edit_key || defaultInitialPassword);
+  const [rouletteId] = useState<string>(targetInitial?.id || generateUUID());
+  const [editKey, setEditKey] = useState<string>(targetInitial?.edit_key || defaultInitialPassword);
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>(initialRoom?.title || '우리 둘만의 달콤한 룰렛 💕');
-  const [resetMode, setResetMode] = useState<ResetMode>(initialRoom?.reset_mode || 'daily');
-  const [dailySpins, setDailySpins] = useState<number>(initialRoom?.daily_spins ?? 3);
-  const [totalSpins, setTotalSpins] = useState<number>(initialRoom?.total_spins ?? 10);
-  const [bonusSpins, setBonusSpins] = useState<number>(initialRoom?.bonus_spins ?? 0);
-  const [usedSpins] = useState<number>(initialRoom?.used_spins ?? 0);
-  const [lastResetDate] = useState<string>(initialRoom?.last_reset_date || new Date().toISOString().slice(0, 10));
+  const [title, setTitle] = useState<string>(targetInitial?.title || '우리 둘만의 달콤한 룰렛 💕');
+  const [resetMode, setResetMode] = useState<ResetMode>(targetInitial?.reset_mode || 'daily');
+  const [dailySpins, setDailySpins] = useState<number>(targetInitial?.daily_spins ?? 3);
+  const [totalSpins, setTotalSpins] = useState<number>(targetInitial?.total_spins ?? 10);
+  const [bonusSpins, setBonusSpins] = useState<number>(targetInitial?.bonus_spins ?? 0);
+  const [usedSpins] = useState<number>(targetInitial?.used_spins ?? 0);
+  const [lastResetDate] = useState<string>(targetInitial?.last_reset_date || new Date().toISOString().slice(0, 10));
 
   // 유효 기간 설정
-  const [usePeriod, setUsePeriod] = useState<boolean>(Boolean(initialRoom?.valid_from || initialRoom?.valid_until));
+  const [usePeriod, setUsePeriod] = useState<boolean>(Boolean(targetInitial?.valid_from || targetInitial?.valid_until));
   const [validFrom, setValidFrom] = useState<string>(
-    initialRoom?.valid_from ? initialRoom.valid_from.slice(0, 16) : ''
+    targetInitial?.valid_from ? targetInitial.valid_from.slice(0, 16) : ''
   );
   const [validUntil, setValidUntil] = useState<string>(
-    initialRoom?.valid_until ? initialRoom.valid_until.slice(0, 16) : ''
+    targetInitial?.valid_until ? targetInitial.valid_until.slice(0, 16) : ''
   );
 
   // 2. 룰렛 아이템 리스트 상태
@@ -82,7 +81,7 @@ export default function SettingsForm({
       : [
         {
           id: generateUUID(),
-          roulette_id: roomId,
+          roulette_id: rouletteId,
           title: '',
           probability: 30,
           color: PASTEL_PALETTE[0],
@@ -91,14 +90,13 @@ export default function SettingsForm({
       ]
   );
 
-  // 새 녹음/업로드 파일 임시 보관 (저장 시 Supabase 업로드)
+  // 새 녹음/업로드 파일 임시 보관
   const [pendingAudios, setPendingAudios] = useState<Record<string, { blob: Blob | File; localUrl: string }>>({});
 
   // UI 상태
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [savedRoomId, setSavedRoomId] = useState<string>(roomId);
+  const [savedRouletteId, setSavedRouletteId] = useState<string>(rouletteId);
   const [colorPickerTargetItemId, setColorPickerTargetItemId] = useState<string | null>(null);
 
   // 저장 완료 여부: 저장을 완료해야 '테스트 해보기' 활성화
@@ -155,8 +153,8 @@ export default function SettingsForm({
   const isProbabilityValid = totalProbability === 100;
 
   // 테스트 해보기 가능 여부: 저장 완료 & 확률 100% & 저장 중이 아님
-  const canTest = Boolean(isSaved && isProbabilityValid && !saving && savedRoomId);
-  const testHref = `/game/${savedRoomId}?mode=test&key=${editKey || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`;
+  const canTest = Boolean(isSaved && isProbabilityValid && !saving && savedRouletteId);
+  const testHref = `/game/${savedRouletteId}?mode=test&key=${editKey || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`;
 
   const handleDisabledTestClick = () => {
     if (!isProbabilityValid) {
@@ -169,8 +167,8 @@ export default function SettingsForm({
   };
 
   // 4. 현재 남은 횟수 미리보기 계산
-  const previewRoom: RouletteRoom = {
-    id: roomId,
+  const previewRoulette: RouletteData = {
+    id: rouletteId,
     title,
     reset_mode: resetMode,
     daily_spins: dailySpins,
@@ -181,9 +179,9 @@ export default function SettingsForm({
     valid_from: usePeriod && validFrom ? new Date(validFrom).toISOString() : undefined,
     valid_until: usePeriod && validUntil ? new Date(validUntil).toISOString() : undefined,
     edit_key: editKey.trim() || defaultInitialPassword,
-    created_at: initialRoom?.created_at || new Date().toISOString(),
+    created_at: targetInitial?.created_at || new Date().toISOString(),
   };
-  const { remaining } = calculateRemainingSpins(previewRoom);
+  const { remaining } = calculateRemainingSpins(previewRoulette);
 
   // 5. 남은 횟수 즉시 보너스 부여 / 차감 액션
   const handleQuickAdjustBonus = async (delta: number) => {
@@ -192,7 +190,7 @@ export default function SettingsForm({
 
     // 이미 저장된 룰렛인 경우 DB/스토리지에 즉시 반영
     if (isEditMode) {
-      await adjustBonusSpins(roomId, delta);
+      await adjustBonusSpins(rouletteId, delta);
     }
   };
 
@@ -258,7 +256,7 @@ export default function SettingsForm({
     const colorIndex = items.length % PASTEL_PALETTE.length;
     const newItem: RouletteItem = {
       id: generateUUID(),
-      roulette_id: roomId,
+      roulette_id: rouletteId,
       title: `새로운 소원/벌칙 #${items.length + 1}`,
       probability: 0,
       color: PASTEL_PALETTE[colorIndex],
@@ -326,12 +324,12 @@ export default function SettingsForm({
     setSaving(true);
 
     try {
-      // 1) 보류 중인 오디오 파일들 Supabase Storage(또는 Local DataURL)로 일괄 업로드
+      // 1) 보류 중인 오디오 파일들 일괄 업로드
       const finalItems = await Promise.all(
         items.map(async (item) => {
           const pending = pendingAudios[item.id];
           if (pending) {
-            const { url } = await uploadAudioFile(pending.blob, roomId, item.id);
+            const { url } = await uploadAudioFile(pending.blob, rouletteId, item.id);
             return {
               ...item,
               audio_url: url,
@@ -341,16 +339,15 @@ export default function SettingsForm({
         })
       );
 
-      // 2) 룰렛 방 및 아이템 저장
-      const res = await saveRouletteRoom(previewRoom, finalItems);
+      // 2) 룰렛 및 아이템 저장
+      const res = await saveRouletteData(previewRoulette, finalItems);
 
       if (res.success) {
-        setSavedRoomId(res.room.id);
-        setSaveSuccess(true);
+        setSavedRouletteId(res.roulette.id);
         setIsSaved(true);
         // 최근 작업 룰렛 ID 로컬스토리지 갱신
         if (typeof window !== 'undefined') {
-          localStorage.setItem('vr_last_room_id', res.room.id);
+          localStorage.setItem('vr_last_roulette_id', res.roulette.id);
         }
         setShowShareModal(true);
       } else {
@@ -425,7 +422,7 @@ export default function SettingsForm({
         </div>
       </div>
 
-      {/* 2. 남은 횟수 설정 & 기회 차감/부여 패널 (사용자 요구사항 1 & 2) */}
+      {/* 2. 남은 횟수 설정 & 기회 차감/부여 패널 */}
       <div className="pastel-card rounded-3xl p-5 flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-purple-600 font-extrabold text-sm">
@@ -438,7 +435,7 @@ export default function SettingsForm({
           </div>
         </div>
 
-        {/* 2-1. 남은 횟수 차감 및 보너스 부여 (즉각적인 인터랙션) */}
+        {/* 2-1. 남은 횟수 차감 및 보너스 부여 */}
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/80 rounded-2xl p-4 flex flex-col gap-2.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-gray-700">🎁 스핀 선물 & 차감 (관리자 제어)</span>
@@ -585,7 +582,7 @@ export default function SettingsForm({
         </div>
       </div>
 
-      {/* 3. 룰렛 아이템 & 음성 매핑 & 확률 편집기 (사용자 요구사항 5 & 6) */}
+      {/* 3. 룰렛 아이템 & 음성 매핑 & 확률 편집기 */}
       <div className="pastel-card rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3.5 sm:gap-4 relative">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-pink-600 font-extrabold text-xs sm:text-sm">
@@ -761,11 +758,10 @@ export default function SettingsForm({
                 </button>
               </div>
 
-              {/* 2행: 룰렛 파스텔 색상 선택기 (기존 5개 + 2차원 상세 색상표 모달) */}
+              {/* 2행: 룰렛 파스텔 색상 선택기 */}
               <div className="flex items-center justify-between gap-2 px-1">
                 <span className="text-xs font-semibold text-gray-600 flex-shrink-0">룰렛 색상:</span>
                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                  {/* 다섯 개 기본 파스텔 색상 (요구사항 4) */}
                   {PASTEL_PALETTE.slice(0, 5).map((color) => (
                     <button
                       key={color}
@@ -782,7 +778,7 @@ export default function SettingsForm({
                     />
                   ))}
 
-                  {/* 2차원 색상표 / 상세 색상 피커 모달 열기 버튼 (요구사항 1, 2, 3) */}
+                  {/* 2차원 색상표 / 상세 색상 피커 모달 열기 버튼 */}
                   <button
                     type="button"
                     onClick={() => setColorPickerTargetItemId(item.id)}
@@ -998,17 +994,17 @@ export default function SettingsForm({
         )}
       </div>
 
-      {/* 공유 링크 모달 (저장 성공 시 자동 또는 버튼 클릭 시 노출) */}
+      {/* 공유 링크 모달 */}
       <ShareModal
         isOpen={showShareModal}
         onClose={() => {
           setShowShareModal(false);
         }}
-        roomId={savedRoomId}
+        rouletteId={savedRouletteId}
         editKey={editKey}
       />
 
-      {/* 2차원 색상표 및 색상/채도/명도/RGB 상세 색상 선택기 모달 (요구사항 1, 2, 3, 4) */}
+      {/* 2차원 색상표 및 색상/채도/명도/RGB 상세 색상 선택기 모달 */}
       {colorPickerTargetItemId && (() => {
         const targetItem = items.find((it) => it.id === colorPickerTargetItemId);
         const targetIndex = items.findIndex((it) => it.id === colorPickerTargetItemId);

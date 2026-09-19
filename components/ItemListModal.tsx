@@ -6,19 +6,19 @@ import { X, Heart, Sparkles, Percent } from 'lucide-react';
 interface ItemListModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roomTitle: string;
+  rouletteTitle?: string;
   items: RouletteItem[];
 }
 
 export default function ItemListModal({
   isOpen,
   onClose,
-  roomTitle,
+  rouletteTitle,
   items,
 }: ItemListModalProps) {
   if (!isOpen) return null;
 
-  const totalProb = items.reduce((sum, it) => sum + (Number(it.probability) || 0), 0);
+  const displayTitle = rouletteTitle || '룰렛 항목';
 
   return (
     <div
@@ -49,7 +49,7 @@ export default function ItemListModal({
             <span>뭐가 나올까?</span>
           </div>
           <h3 className="text-lg sm:text-xl font-black text-gray-800 tracking-tight break-keep px-6">
-            {roomTitle}
+            {displayTitle}
           </h3>
         </div>
 
@@ -105,7 +105,6 @@ export default function ItemListModal({
 
         {/* 하단 요약 정보 및 닫기 버튼 */}
         <div className="pt-2 border-t border-pink-100 flex flex-col gap-2.5">
-
           <button
             onClick={onClose}
             className="w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-md transition-transform active:scale-95 flex items-center justify-center gap-1"

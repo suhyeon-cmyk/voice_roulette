@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { RouletteItem, RouletteRoom } from '@/types/roulette';
+import { RouletteItem, RouletteData } from '@/types/roulette';
 
-import defaultRoomsData from '@/data/roulette.json';
+import defaultRoulettesData from '@/data/roulette.json';
 import defaultItemsData from '@/data/roulette_items.json';
 import defaultSuggestionsData from '@/data/suggestions.json';
 
@@ -15,13 +15,13 @@ const DATA_DIR = IS_SERVERLESS
   ? path.join(os.tmpdir(), 'voice_roulette_data')
   : path.join(process.cwd(), 'data');
 
-const ROOMS_FILE = path.join(DATA_DIR, 'roulette.json');
-const ROOM_ITEMS_FILE = path.join(DATA_DIR, 'roulette_items.json');
+const ROULETTE_FILE = path.join(DATA_DIR, 'roulette.json');
+const ROULETTE_ITEMS_FILE = path.join(DATA_DIR, 'roulette_items.json');
 const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
 
 declare global {
   // eslint-disable-next-line no-var
-  var __vr_rooms_cache: RouletteRoom[] | undefined;
+  var __vr_roulettes_cache: RouletteData[] | undefined;
   // eslint-disable-next-line no-var
   var __vr_items_cache: RouletteItem[] | undefined;
   // eslint-disable-next-line no-var
@@ -36,32 +36,32 @@ function ensureDataDir() {
   } catch {}
 }
 
-export function getAllServerRooms(): RouletteRoom[] {
-  if (globalThis.__vr_rooms_cache && globalThis.__vr_rooms_cache.length > 0) {
-    return globalThis.__vr_rooms_cache;
+export function getAllServerRoulettes(): RouletteData[] {
+  if (globalThis.__vr_roulettes_cache && globalThis.__vr_roulettes_cache.length > 0) {
+    return globalThis.__vr_roulettes_cache;
   }
   ensureDataDir();
   try {
-    if (fs.existsSync(ROOMS_FILE)) {
-      const raw = fs.readFileSync(ROOMS_FILE, 'utf-8');
-      const rooms = JSON.parse(raw);
-      if (Array.isArray(rooms) && rooms.length > 0) {
-        globalThis.__vr_rooms_cache = rooms;
-        return rooms;
+    if (fs.existsSync(ROULETTE_FILE)) {
+      const raw = fs.readFileSync(ROULETTE_FILE, 'utf-8');
+      const roulettes = JSON.parse(raw);
+      if (Array.isArray(roulettes) && roulettes.length > 0) {
+        globalThis.__vr_roulettes_cache = roulettes;
+        return roulettes;
       }
     }
   } catch {}
 
-  const initial = Array.isArray(defaultRoomsData) ? (defaultRoomsData as RouletteRoom[]) : [];
-  globalThis.__vr_rooms_cache = initial;
+  const initial = Array.isArray(defaultRoulettesData) ? (defaultRoulettesData as RouletteData[]) : [];
+  globalThis.__vr_roulettes_cache = initial;
   return initial;
 }
 
-export function saveAllServerRooms(rooms: RouletteRoom[]) {
-  globalThis.__vr_rooms_cache = rooms;
+export function saveAllServerRoulettes(roulettes: RouletteData[]) {
+  globalThis.__vr_roulettes_cache = roulettes;
   ensureDataDir();
   try {
-    fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2), 'utf-8');
+    fs.writeFileSync(ROULETTE_FILE, JSON.stringify(roulettes, null, 2), 'utf-8');
   } catch {}
 }
 
@@ -71,8 +71,8 @@ export function getAllServerItems(): RouletteItem[] {
   }
   ensureDataDir();
   try {
-    if (fs.existsSync(ROOM_ITEMS_FILE)) {
-      const raw = fs.readFileSync(ROOM_ITEMS_FILE, 'utf-8');
+    if (fs.existsSync(ROULETTE_ITEMS_FILE)) {
+      const raw = fs.readFileSync(ROULETTE_ITEMS_FILE, 'utf-8');
       const items = JSON.parse(raw);
       if (Array.isArray(items) && items.length > 0) {
         globalThis.__vr_items_cache = items;
@@ -90,7 +90,7 @@ export function saveAllServerItems(items: RouletteItem[]) {
   globalThis.__vr_items_cache = items;
   ensureDataDir();
   try {
-    fs.writeFileSync(ROOM_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
+    fs.writeFileSync(ROULETTE_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
   } catch {}
 }
 
@@ -98,72 +98,72 @@ export function getPresetRecommendations(): string[] {
   return Array.isArray(defaultSuggestionsData) ? (defaultSuggestionsData as string[]) : [];
 }
 
-export function getServerRoomData(roomId: string): { room: RouletteRoom; items: RouletteItem[] } | null {
-  const rooms = getAllServerRooms();
-  const room = rooms.find((r) => r.id === roomId);
-  if (!room) return null;
+export function getServerRouletteData(rouletteId: string): { roulette: RouletteData; items: RouletteItem[] } | null {
+  const roulettes = getAllServerRoulettes();
+  const roulette = roulettes.find((r) => r.id === rouletteId);
+  if (!roulette) return null;
 
   const allItems = getAllServerItems();
-  const items = allItems.filter((it) => (it.roulette_id || it.room_id) === roomId);
+  const items = allItems.filter((it) => it.roulette_id === rouletteId);
 
-  return { room, items };
+  return { roulette, items };
 }
 
-export function upsertServerRoom(room: RouletteRoom, items: RouletteItem[]) {
-  const rooms = getAllServerRooms();
-  const existingIdx = rooms.findIndex((r) => r.id === room.id);
+export function upsertServerRoulette(roulette: RouletteData, items: RouletteItem[]) {
+  const roulettes = getAllServerRoulettes();
+  const existingIdx = roulettes.findIndex((r) => r.id === roulette.id);
   if (existingIdx >= 0) {
-    rooms[existingIdx] = room;
+    roulettes[existingIdx] = roulette;
   } else {
-    rooms.unshift(room);
+    roulettes.unshift(roulette);
   }
-  saveAllServerRooms(rooms);
+  saveAllServerRoulettes(roulettes);
 
-  const currentItems = getAllServerItems().filter((it) => (it.roulette_id || it.room_id) !== room.id);
+  const currentItems = getAllServerItems().filter((it) => it.roulette_id !== roulette.id);
   const newItems = items.map((it, idx) => ({
     ...it,
     id: it.id || crypto.randomUUID(),
-    roulette_id: room.id,
+    roulette_id: roulette.id,
     sort_order: idx,
   }));
   saveAllServerItems([...currentItems, ...newItems]);
 
-  return { room, items: newItems };
+  return { roulette, items: newItems };
 }
 
-export function deleteServerRoom(roomId: string): boolean {
-  const rooms = getAllServerRooms();
-  const filteredRooms = rooms.filter((r) => r.id !== roomId);
-  if (filteredRooms.length === rooms.length) {
+export function deleteServerRoulette(rouletteId: string): boolean {
+  const roulettes = getAllServerRoulettes();
+  const filteredRoulettes = roulettes.filter((r) => r.id !== rouletteId);
+  if (filteredRoulettes.length === roulettes.length) {
     return false;
   }
-  saveAllServerRooms(filteredRooms);
+  saveAllServerRoulettes(filteredRoulettes);
 
   const items = getAllServerItems();
-  const filteredItems = items.filter((it) => (it.roulette_id || it.room_id) !== roomId);
+  const filteredItems = items.filter((it) => it.roulette_id !== rouletteId);
   saveAllServerItems(filteredItems);
 
   return true;
 }
 
-export interface AdminRoomStats {
-  room: RouletteRoom;
+export interface AdminRouletteStats {
+  roulette: RouletteData;
   items: RouletteItem[];
   itemCount: number;
   audioCount: number;
   totalProbability: number;
 }
 
-export function getAllServerRoomsWithStats(): AdminRoomStats[] {
-  const rooms = getAllServerRooms();
+export function getAllServerRoulettesWithStats(): AdminRouletteStats[] {
+  const roulettes = getAllServerRoulettes();
   const allItems = getAllServerItems();
 
-  return rooms.map((room) => {
-    const items = allItems.filter((it) => (it.roulette_id || it.room_id) === room.id);
+  return roulettes.map((roulette) => {
+    const items = allItems.filter((it) => it.roulette_id === roulette.id);
     const audioCount = items.filter((it) => Boolean(it.audio_url)).length;
     const totalProbability = items.reduce((acc, it) => acc + (Number(it.probability) || 0), 0);
     return {
-      room,
+      roulette,
       items,
       itemCount: items.length,
       audioCount,

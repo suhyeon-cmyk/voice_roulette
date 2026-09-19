@@ -7,15 +7,15 @@ export default function RedirectToSettingsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const roomId = params?.id as string;
+  const rouletteId = params?.id as string;
   const key = searchParams.get('key');
 
   useEffect(() => {
-    if (roomId) {
-      const target = key ? `/settings/${roomId}?key=${key}` : `/settings/${roomId}`;
+    if (rouletteId) {
+      const target = key ? `/settings/${rouletteId}?key=${key}` : `/settings/${rouletteId}`;
       router.replace(target);
     }
-  }, [roomId, key, router]);
+  }, [rouletteId, key, router]);
 
   return null;
 }
