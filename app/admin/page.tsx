@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-react';
 import { RouletteData, RouletteItem } from '@/types/roulette';
+import { deleteRouletteData } from '@/lib/storage';
 
 interface AdminRouletteStats {
   roulette: RouletteData;
@@ -257,17 +258,11 @@ export default function SuperAdminPage() {
     setActionLoadingId(rouletteId);
 
     try {
-      const res = await fetch(`/api/roulette/${rouletteId}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setDeleteTargetRoulette(null);
-        await fetchDashboardData();
-      } else {
-        alert('룰렛 삭제 중 오류가 발생했습니다.');
-      }
+      await deleteRouletteData(rouletteId);
+      setDeleteTargetRoulette(null);
+      await fetchDashboardData();
     } catch {
-      alert('룰렛 삭제 요청에 실패했습니다.');
+      alert('룰렛 삭제 요청 중 오류가 발생했습니다.');
     } finally {
       setActionLoadingId(null);
     }
@@ -567,11 +562,10 @@ export default function SuperAdminPage() {
                   key={mode.key}
                   type="button"
                   onClick={() => setModeFilter(mode.key)}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
-                    modeFilter === mode.key
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${modeFilter === mode.key
                       ? 'bg-pink-500 text-white shadow-xs'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {mode.label}
                 </button>
@@ -637,17 +631,16 @@ export default function SuperAdminPage() {
                           {roulette.reset_mode === 'daily'
                             ? `매일 리셋 (${roulette.daily_spins}회)`
                             : roulette.reset_mode === 'total'
-                            ? `전체 횟수제 (${roulette.total_spins}회)`
-                            : '무제한 모드 ∞'}
+                              ? `전체 횟수제 (${roulette.total_spins}회)`
+                              : '무제한 모드 ∞'}
                         </span>
 
                         {/* 확률 합계 뱃지 */}
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            totalProbability === 100
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${totalProbability === 100
                               ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                               : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                          }`}
+                            }`}
                         >
                           확률 합계: {totalProbability}%
                         </span>
@@ -750,11 +743,10 @@ export default function SuperAdminPage() {
                             type="button"
                             disabled={isActionLoading}
                             onClick={() => handleAdjustSpin(roulette.id, 'adjust_bonus', delta)}
-                            className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ${
-                              delta > 0
+                            className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ${delta > 0
                                 ? 'bg-pink-500/15 hover:bg-pink-500/30 text-pink-300 border-pink-500/30'
                                 : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                            }`}
+                              }`}
                           >
                             {delta > 0 ? `+${delta}` : delta}
                           </button>

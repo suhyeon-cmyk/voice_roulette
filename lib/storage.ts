@@ -137,13 +137,26 @@ export async function getRouletteData(rouletteId: string): Promise<RouletteState
             is_valid_period: data.is_valid_period,
           };
         }
+      } else if (res.status === 404) {
+        // 중요: 서버에서 404(삭제되었거나 존재하지 않음)를 반환한 경우,
+        // 브라우저 LocalStorage에 남아있던 구버전 캐시도 완전히 파기하고 즉시 null을 반환합니다.
+        const localRoulettes = getLocalRoulettes().filter((r) => r.id !== rouletteId);
+        saveLocalRoulettes(localRoulettes);
+        const localItems = getLocalItems().filter((it) => it.roulette_id !== rouletteId);
+        saveLocalItems(localItems);
+        try {
+          if (localStorage.getItem('vr_last_roulette_id') === rouletteId) {
+            localStorage.removeItem('vr_last_roulette_id');
+          }
+        } catch {}
+        return null;
       }
     } catch (e) {
       console.warn('Server API fetch failed, trying local storage:', e);
     }
   }
 
-  // 2) LocalStorage Fallback
+  // 2) LocalStorage Fallback (서버 오프라인/네트워크 단절 시에만 한정)
   const roulettes = getLocalRoulettes();
   const roulette = roulettes.find((r) => r.id === rouletteId);
   if (roulette) {
@@ -166,6 +179,39 @@ export async function getRouletteData(rouletteId: string): Promise<RouletteState
   }
 
   return null;
+}
+
+// ----------------------------------------------------------------------
+// 3-1. 룰렛 단건 삭제 (Server API + LocalStorage 동시 삭제)
+// ----------------------------------------------------------------------
+export async function deleteRouletteData(rouletteId: string): Promise<boolean> {
+  if (!rouletteId) return false;
+
+  // 1) Server API 삭제 요청
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/roulette/${rouletteId}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      console.warn('Server API delete failed:', e);
+    }
+  }
+
+  // 2) LocalStorage 캐시 완전 파기
+  if (typeof window !== 'undefined') {
+    const localRoulettes = getLocalRoulettes().filter((r) => r.id !== rouletteId);
+    saveLocalRoulettes(localRoulettes);
+    const localItems = getLocalItems().filter((it) => it.roulette_id !== rouletteId);
+    saveLocalItems(localItems);
+    try {
+      if (localStorage.getItem('vr_last_roulette_id') === rouletteId) {
+        localStorage.removeItem('vr_last_roulette_id');
+      }
+    } catch {}
+  }
+
+  return true;
 }
 
 // ----------------------------------------------------------------------

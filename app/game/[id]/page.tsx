@@ -25,15 +25,20 @@ function GamePlayContent() {
   useEffect(() => {
     if (!rouletteId) return;
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('vr_last_roulette_id', rouletteId);
-    }
-
     const loadData = async () => {
       try {
         setLoading(true);
         const data = await getRouletteData(rouletteId);
         setState(data);
+        if (typeof window !== 'undefined') {
+          if (data) {
+            localStorage.setItem('vr_last_roulette_id', rouletteId);
+          } else {
+            if (localStorage.getItem('vr_last_roulette_id') === rouletteId) {
+              localStorage.removeItem('vr_last_roulette_id');
+            }
+          }
+        }
       } catch (err) {
         console.warn('Failed to load roulette:', err);
       } finally {
