@@ -144,59 +144,68 @@ export async function getRouletteRoom(roomId: string): Promise<RouletteState | n
       if (res.ok) {
         const data = await res.json();
         if (data && data.room) {
+          // 서버에서 가져온 방을 로컬 스토리지와 동기화
+          const localRooms = getLocalRooms();
+          const rIdx = localRooms.findIndex((r) => r.id === roomId);
+          if (rIdx >= 0) {
+            localRooms[rIdx] = data.room;
+          } else {
+            localRooms.unshift(data.room);
+          }
+          saveLocalRooms(localRooms);
           return data as RouletteState;
         }
-      } else if (res.status === 404) {
-        // 서버에서 404 (삭제되었거나 존재하지 않는 룰렛)인 경우:
-        // 로컬스토리지의 캐시도 정리하고 즉시 null 반환
-        const rooms = getLocalRooms().filter((r) => r.id !== roomId);
-        saveLocalRooms(rooms);
-        const items = getLocalItems().filter((it) => (it.roulette_id || it.room_id) !== roomId);
-        saveLocalItems(items);
-        if (localStorage.getItem('vr_last_room_id') === roomId) {
-          localStorage.removeItem('vr_last_room_id');
-        }
-        return null;
       }
     } catch (e) {
       console.warn('Server API fetch failed, trying local storage:', e);
     }
   }
 
-  // 2) LocalStorage Fallback
+  // 2) LocalStorage Fallback (오프라인 및 서버리스 환경 대비)
   const rooms = getLocalRooms();
   const room = rooms.find((r) => r.id === roomId);
-  if (!room) {
-    if (roomId === DEFAULT_SAMPLE_ROOM.id) {
-      return {
-        room: DEFAULT_SAMPLE_ROOM,
-        items: DEFAULT_SAMPLE_ITEMS,
-        remaining_spins: DEFAULT_SAMPLE_ROOM.daily_spins,
-        is_valid_period: true,
-      };
+  if (room) {
+    const allItems = getLocalItems();
+    let items = allItems.filter((it) => (it.roulette_id || it.room_id) === roomId);
+    if (items.length === 0 && roomId === DEFAULT_SAMPLE_ROOM.id) {
+      items = DEFAULT_SAMPLE_ITEMS;
     }
-    return null;
+
+    const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(room);
+    if (isDateReset) {
+      room.used_spins = 0;
+      room.last_reset_date = new Date().toISOString().slice(0, 10);
+      saveLocalRooms(rooms);
+    }
+
+    // 서버에 방이 없는 경우 백그라운드에서 서버로 자동 재동기화 시도
+    if (typeof window !== 'undefined' && roomId !== DEFAULT_SAMPLE_ROOM.id) {
+      fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room, items }),
+      }).catch(() => {});
+    }
+
+    return {
+      room,
+      items,
+      remaining_spins: remaining,
+      is_valid_period: isValidPeriod,
+    };
   }
 
-  const allItems = getLocalItems();
-  let items = allItems.filter((it) => (it.roulette_id || it.room_id) === roomId);
-  if (items.length === 0 && roomId === DEFAULT_SAMPLE_ROOM.id) {
-    items = DEFAULT_SAMPLE_ITEMS;
+  // 3) 기본 샘플 룸 처리
+  if (roomId === DEFAULT_SAMPLE_ROOM.id) {
+    return {
+      room: DEFAULT_SAMPLE_ROOM,
+      items: DEFAULT_SAMPLE_ITEMS,
+      remaining_spins: DEFAULT_SAMPLE_ROOM.daily_spins,
+      is_valid_period: true,
+    };
   }
 
-  const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(room);
-  if (isDateReset) {
-    room.used_spins = 0;
-    room.last_reset_date = new Date().toISOString().slice(0, 10);
-    saveLocalRooms(rooms);
-  }
-
-  return {
-    room,
-    items,
-    remaining_spins: remaining,
-    is_valid_period: isValidPeriod,
-  };
+  return null;
 }
 
 // ----------------------------------------------------------------------

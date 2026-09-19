@@ -1,59 +1,101 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { RouletteItem, RouletteRoom } from '@/types/roulette';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+import defaultRoomsData from '@/data/roulette.json';
+import defaultItemsData from '@/data/roulette_items.json';
+import defaultSuggestionsData from '@/data/suggestions.json';
+
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NOW_REGION
+);
+
+const DATA_DIR = IS_SERVERLESS
+  ? path.join(os.tmpdir(), 'voice_roulette_data')
+  : path.join(process.cwd(), 'data');
+
 const ROOMS_FILE = path.join(DATA_DIR, 'roulette.json');
 const ROOM_ITEMS_FILE = path.join(DATA_DIR, 'roulette_items.json');
-const RECOMMENDATIONS_FILE = path.join(DATA_DIR, 'suggestions.json');
+const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __vr_rooms_cache: RouletteRoom[] | undefined;
+  // eslint-disable-next-line no-var
+  var __vr_items_cache: RouletteItem[] | undefined;
+  // eslint-disable-next-line no-var
+  var __vr_admin_cache: { password?: string; updated_at?: string } | undefined;
+}
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch {}
 }
 
 export function getAllServerRooms(): RouletteRoom[] {
-  try {
-    if (!fs.existsSync(ROOMS_FILE)) return [];
-    const raw = fs.readFileSync(ROOMS_FILE, 'utf-8');
-    const rooms = JSON.parse(raw);
-    return Array.isArray(rooms) ? rooms : [];
-  } catch {
-    return [];
+  if (globalThis.__vr_rooms_cache && globalThis.__vr_rooms_cache.length > 0) {
+    return globalThis.__vr_rooms_cache;
   }
+  ensureDataDir();
+  try {
+    if (fs.existsSync(ROOMS_FILE)) {
+      const raw = fs.readFileSync(ROOMS_FILE, 'utf-8');
+      const rooms = JSON.parse(raw);
+      if (Array.isArray(rooms) && rooms.length > 0) {
+        globalThis.__vr_rooms_cache = rooms;
+        return rooms;
+      }
+    }
+  } catch {}
+
+  const initial = Array.isArray(defaultRoomsData) ? (defaultRoomsData as RouletteRoom[]) : [];
+  globalThis.__vr_rooms_cache = initial;
+  return initial;
 }
 
 export function saveAllServerRooms(rooms: RouletteRoom[]) {
+  globalThis.__vr_rooms_cache = rooms;
   ensureDataDir();
-  fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2), 'utf-8');
+  } catch {}
 }
 
 export function getAllServerItems(): RouletteItem[] {
-  try {
-    if (!fs.existsSync(ROOM_ITEMS_FILE)) return [];
-    const raw = fs.readFileSync(ROOM_ITEMS_FILE, 'utf-8');
-    const items = JSON.parse(raw);
-    return Array.isArray(items) ? items : [];
-  } catch {
-    return [];
+  if (globalThis.__vr_items_cache && globalThis.__vr_items_cache.length > 0) {
+    return globalThis.__vr_items_cache;
   }
+  ensureDataDir();
+  try {
+    if (fs.existsSync(ROOM_ITEMS_FILE)) {
+      const raw = fs.readFileSync(ROOM_ITEMS_FILE, 'utf-8');
+      const items = JSON.parse(raw);
+      if (Array.isArray(items) && items.length > 0) {
+        globalThis.__vr_items_cache = items;
+        return items;
+      }
+    }
+  } catch {}
+
+  const initial = Array.isArray(defaultItemsData) ? (defaultItemsData as RouletteItem[]) : [];
+  globalThis.__vr_items_cache = initial;
+  return initial;
 }
 
 export function saveAllServerItems(items: RouletteItem[]) {
+  globalThis.__vr_items_cache = items;
   ensureDataDir();
-  fs.writeFileSync(ROOM_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(ROOM_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
+  } catch {}
 }
 
 export function getPresetRecommendations(): string[] {
-  try {
-    if (!fs.existsSync(RECOMMENDATIONS_FILE)) return [];
-    const raw = fs.readFileSync(RECOMMENDATIONS_FILE, 'utf-8');
-    const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
+  return Array.isArray(defaultSuggestionsData) ? (defaultSuggestionsData as string[]) : [];
 }
 
 export function getServerRoomData(roomId: string): { room: RouletteRoom; items: RouletteItem[] } | null {
@@ -130,14 +172,17 @@ export function getAllServerRoomsWithStats(): AdminRoomStats[] {
   });
 }
 
-const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
-
 export function getMasterAdminPassword(): string {
+  if (globalThis.__vr_admin_cache?.password) {
+    return globalThis.__vr_admin_cache.password;
+  }
+  ensureDataDir();
   try {
     if (fs.existsSync(ADMIN_CONFIG_FILE)) {
       const raw = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf-8');
       const data = JSON.parse(raw);
       if (data && data.password) {
+        globalThis.__vr_admin_cache = data;
         return data.password;
       }
     }
@@ -146,14 +191,16 @@ export function getMasterAdminPassword(): string {
 }
 
 export function saveMasterAdminPassword(newPassword: string): boolean {
-  ensureDataDir();
-  const data = {
+  globalThis.__vr_admin_cache = {
     password: newPassword,
     updated_at: new Date().toISOString(),
   };
-  fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  ensureDataDir();
+  try {
+    fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(globalThis.__vr_admin_cache, null, 2), 'utf-8');
+  } catch {}
 
-  // Also sync with .env file if it exists
+  // Also sync with .env file if in a writable local dev environment
   try {
     const envPath = path.join(process.cwd(), '.env');
     if (fs.existsSync(envPath)) {
@@ -165,10 +212,7 @@ export function saveMasterAdminPassword(newPassword: string): boolean {
       }
       fs.writeFileSync(envPath, content, 'utf-8');
     }
-  } catch (err) {
-    console.warn('Failed to sync with .env:', err);
-  }
+  } catch {}
 
   return true;
 }
-
