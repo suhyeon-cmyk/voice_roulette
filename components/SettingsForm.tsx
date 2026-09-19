@@ -54,7 +54,7 @@ export default function SettingsForm({
   const [rouletteId] = useState<string>(targetInitial?.id || generateUUID());
   const [editKey, setEditKey] = useState<string>(targetInitial?.edit_key || defaultInitialPassword);
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>(targetInitial?.title || '우리 둘만의 달콤한 룰렛 💕');
+  const [title, setTitle] = useState<string>(targetInitial?.title || '');
   const [resetMode, setResetMode] = useState<ResetMode>(targetInitial?.reset_mode || 'daily');
   const [dailySpins, setDailySpins] = useState<number>(targetInitial?.daily_spins ?? 3);
   const [totalSpins, setTotalSpins] = useState<number>(targetInitial?.total_spins ?? 10);
@@ -71,22 +71,14 @@ export default function SettingsForm({
     targetInitial?.valid_until ? targetInitial.valid_until.slice(0, 16) : ''
   );
 
-  // 2. 룰렛 아이템 리스트 상태
+  // 2. 룰렛 아이템 리스트 상태 (신규 생성 시 2개 항목 50%+50%=100%)
   const [items, setItems] = useState<RouletteItem[]>(
     initialItems && initialItems.length > 0
       ? initialItems.map((it) => ({
-          ...it,
-          probability: Math.floor(Number(it.probability) || 0),
-        }))
+        ...it,
+        probability: Math.floor(Number(it.probability) || 0),
+      }))
       : [
-        {
-          id: generateUUID(),
-          roulette_id: rouletteId,
-          title: '',
-          probability: 30,
-          color: PASTEL_PALETTE[0],
-          sort_order: 0,
-        },
       ]
   );
 
@@ -514,8 +506,8 @@ export default function SettingsForm({
               {resetMode === 'daily'
                 ? '하루 기본 횟수'
                 : resetMode === 'total'
-                ? '전체 기본 횟수'
-                : '스핀 횟수 모드'}
+                  ? '전체 기본 횟수'
+                  : '스핀 횟수 모드'}
             </label>
             {resetMode === 'infinite' ? (
               <div className="w-full px-3 py-2 bg-pink-50/80 border border-pink-200 rounded-xl text-xs font-bold text-pink-700 flex items-center gap-1.5">
@@ -957,11 +949,10 @@ export default function SettingsForm({
             handleSave();
           }}
           disabled={saving}
-          className={`flex-1 py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-transform active:scale-98 ${
-            !isProbabilityValid
+          className={`flex-1 py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-transform active:scale-98 ${!isProbabilityValid
               ? 'bg-gray-300 hover:bg-gray-400 text-gray-600 cursor-not-allowed opacity-80'
               : 'bg-gradient-to-r from-pink-500 via-rose-400 to-pink-500 hover:from-pink-600 hover:to-rose-500 text-white animate-jelly'
-          }`}
+            }`}
           title={!isProbabilityValid ? `확률의 합이 100%가 되어야 저장할 수 있습니다. (현재 ${totalProbability}%)` : undefined}
         >
           {saving ? (

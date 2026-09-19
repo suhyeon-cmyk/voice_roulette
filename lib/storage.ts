@@ -27,31 +27,6 @@ export const PASTEL_PALETTE = [
   '#BFFCC6', // 연두 크림
 ];
 
-// 기본 샘플 커플 룰렛 데이터
-export const DEFAULT_SAMPLE_ROULETTE: RouletteData = {
-  id: 'sample-love-roulette',
-  title: '우리의 달콤한 커플 룰렛 💕',
-  reset_mode: 'daily',
-  daily_spins: 3,
-  total_spins: 10,
-  bonus_spins: 0,
-  used_spins: 0,
-  last_reset_date: new Date().toISOString().slice(0, 10),
-  edit_key: process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234',
-  created_at: new Date().toISOString(),
-};
-
-export const DEFAULT_SAMPLE_ITEMS: RouletteItem[] = [
-  {
-    id: 'sample-item-1',
-    roulette_id: 'sample-love-roulette',
-    title: '',
-    probability: 30,
-    color: '#FFB5C5',
-    sort_order: 0,
-  },
-];
-
 // ----------------------------------------------------------------------
 // 1. 유효 기간 및 잔여 횟수 계산 유틸리티
 // ----------------------------------------------------------------------
@@ -137,6 +112,8 @@ export function saveLocalItems(items: RouletteItem[]) {
 // 3. 룰렛 및 아이템 조회 (Server API ➔ LocalStorage)
 // ----------------------------------------------------------------------
 export async function getRouletteData(rouletteId: string): Promise<RouletteState | null> {
+  if (!rouletteId) return null;
+
   // 1) Next.js Server API 연동 시도
   if (typeof window !== 'undefined') {
     try {
@@ -155,7 +132,7 @@ export async function getRouletteData(rouletteId: string): Promise<RouletteState
           saveLocalRoulettes(localRoulettes);
           return {
             roulette,
-            items: data.items,
+            items: data.items || [],
             remaining_spins: data.remaining_spins,
             is_valid_period: data.is_valid_period,
           };
@@ -171,10 +148,7 @@ export async function getRouletteData(rouletteId: string): Promise<RouletteState
   const roulette = roulettes.find((r) => r.id === rouletteId);
   if (roulette) {
     const allItems = getLocalItems();
-    let items = allItems.filter((it) => it.roulette_id === rouletteId);
-    if (items.length === 0 && rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
-      items = DEFAULT_SAMPLE_ITEMS;
-    }
+    const items = allItems.filter((it) => it.roulette_id === rouletteId);
 
     const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(roulette);
     if (isDateReset) {
@@ -183,30 +157,11 @@ export async function getRouletteData(rouletteId: string): Promise<RouletteState
       saveLocalRoulettes(roulettes);
     }
 
-    // 서버에 룰렛이 없는 경우 백그라운드에서 서버로 자동 재동기화 시도
-    if (typeof window !== 'undefined' && rouletteId !== DEFAULT_SAMPLE_ROULETTE.id) {
-      fetch('/api/roulette', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roulette, items }),
-      }).catch(() => {});
-    }
-
     return {
       roulette,
       items,
       remaining_spins: remaining,
       is_valid_period: isValidPeriod,
-    };
-  }
-
-  // 3) 기본 샘플 룰렛 처리
-  if (rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
-    return {
-      roulette: DEFAULT_SAMPLE_ROULETTE,
-      items: DEFAULT_SAMPLE_ITEMS,
-      remaining_spins: DEFAULT_SAMPLE_ROULETTE.daily_spins,
-      is_valid_period: true,
     };
   }
 

@@ -3,8 +3,6 @@ import path from 'path';
 import os from 'os';
 import { RouletteItem, RouletteData } from '@/types/roulette';
 
-import defaultRoulettesData from '@/data/roulette.json';
-import defaultItemsData from '@/data/roulette_items.json';
 import defaultSuggestionsData from '@/data/suggestions.json';
 
 const IS_SERVERLESS = Boolean(
@@ -37,7 +35,7 @@ function ensureDataDir() {
 }
 
 export function getAllServerRoulettes(): RouletteData[] {
-  if (globalThis.__vr_roulettes_cache && globalThis.__vr_roulettes_cache.length > 0) {
+  if (Array.isArray(globalThis.__vr_roulettes_cache)) {
     return globalThis.__vr_roulettes_cache;
   }
   ensureDataDir();
@@ -45,14 +43,14 @@ export function getAllServerRoulettes(): RouletteData[] {
     if (fs.existsSync(ROULETTE_FILE)) {
       const raw = fs.readFileSync(ROULETTE_FILE, 'utf-8');
       const roulettes = JSON.parse(raw);
-      if (Array.isArray(roulettes) && roulettes.length > 0) {
+      if (Array.isArray(roulettes)) {
         globalThis.__vr_roulettes_cache = roulettes;
         return roulettes;
       }
     }
   } catch {}
 
-  const initial = Array.isArray(defaultRoulettesData) ? (defaultRoulettesData as RouletteData[]) : [];
+  const initial: RouletteData[] = [];
   globalThis.__vr_roulettes_cache = initial;
   return initial;
 }
@@ -66,7 +64,7 @@ export function saveAllServerRoulettes(roulettes: RouletteData[]) {
 }
 
 export function getAllServerItems(): RouletteItem[] {
-  if (globalThis.__vr_items_cache && globalThis.__vr_items_cache.length > 0) {
+  if (Array.isArray(globalThis.__vr_items_cache)) {
     return globalThis.__vr_items_cache;
   }
   ensureDataDir();
@@ -74,14 +72,14 @@ export function getAllServerItems(): RouletteItem[] {
     if (fs.existsSync(ROULETTE_ITEMS_FILE)) {
       const raw = fs.readFileSync(ROULETTE_ITEMS_FILE, 'utf-8');
       const items = JSON.parse(raw);
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         globalThis.__vr_items_cache = items;
         return items;
       }
     }
   } catch {}
 
-  const initial = Array.isArray(defaultItemsData) ? (defaultItemsData as RouletteItem[]) : [];
+  const initial: RouletteItem[] = [];
   globalThis.__vr_items_cache = initial;
   return initial;
 }
@@ -132,16 +130,16 @@ export function upsertServerRoulette(roulette: RouletteData, items: RouletteItem
 }
 
 export function deleteServerRoulette(rouletteId: string): boolean {
-  const roulettes = getAllServerRoulettes();
-  const filteredRoulettes = roulettes.filter((r) => r.id !== rouletteId);
-  if (filteredRoulettes.length === roulettes.length) {
-    return false;
-  }
-  saveAllServerRoulettes(filteredRoulettes);
+  ensureDataDir();
+  const trimmedId = rouletteId.trim();
 
-  const items = getAllServerItems();
-  const filteredItems = items.filter((it) => it.roulette_id !== rouletteId);
-  saveAllServerItems(filteredItems);
+  let roulettes = getAllServerRoulettes();
+  roulettes = roulettes.filter((r) => r.id !== trimmedId);
+  saveAllServerRoulettes(roulettes);
+
+  let items = getAllServerItems();
+  items = items.filter((it) => it.roulette_id !== trimmedId);
+  saveAllServerItems(items);
 
   return true;
 }

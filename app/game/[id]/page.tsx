@@ -6,7 +6,7 @@ import RouletteWheel from '@/components/RouletteWheel';
 import ResultModal from '@/components/ResultModal';
 import ItemListModal from '@/components/ItemListModal';
 import { RouletteItem, RouletteState } from '@/types/roulette';
-import { consumeSpin, getRouletteData, DEFAULT_SAMPLE_ROULETTE, DEFAULT_SAMPLE_ITEMS } from '@/lib/storage';
+import { consumeSpin, getRouletteData } from '@/lib/storage';
 import { Sparkles, Clock, AlertCircle, FlaskConical, Settings } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,18 +16,8 @@ function GamePlayContent() {
   const rouletteId = params?.id as string;
   const isTestMode = searchParams.get('mode') === 'test';
 
-  const [state, setState] = useState<RouletteState | null>(() => {
-    if (rouletteId === DEFAULT_SAMPLE_ROULETTE.id) {
-      return {
-        roulette: DEFAULT_SAMPLE_ROULETTE,
-        items: DEFAULT_SAMPLE_ITEMS,
-        remaining_spins: DEFAULT_SAMPLE_ROULETTE.daily_spins,
-        is_valid_period: true,
-      };
-    }
-    return null;
-  });
-  const [loading, setLoading] = useState(rouletteId !== DEFAULT_SAMPLE_ROULETTE.id);
+  const [state, setState] = useState<RouletteState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [winner, setWinner] = useState<RouletteItem | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
@@ -56,7 +46,7 @@ function GamePlayContent() {
 
   const handleSpinEnd = async (winnerItem: RouletteItem) => {
     if (!state) return;
-    const roulette = state.roulette || DEFAULT_SAMPLE_ROULETTE;
+    const roulette = state.roulette;
 
     if (!isTestMode) {
       // 일반 플레이 시에만 1회 차감 (테스트 모드에서는 스핀 소모 없음)
@@ -107,7 +97,7 @@ function GamePlayContent() {
     );
   }
 
-  const roulette = state.roulette || DEFAULT_SAMPLE_ROULETTE;
+  const roulette = state.roulette;
   const items = state.items || [];
   const remaining = state.remaining_spins;
   const isValidPeriod = state.is_valid_period;
@@ -125,7 +115,7 @@ function GamePlayContent() {
             href={`/settings/${rouletteId}?key=${roulette.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
             className="px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 font-extrabold text-xs rounded-xl shadow-xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
           >
-            <Settings className="w-3 h-3" />
+            <Settings className="w-3.5 h-3.5" />
             <span>설정으로 돌아가기</span>
           </Link>
         </div>
