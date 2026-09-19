@@ -1,36 +1,201 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💕 Voice Roulette (달콤한 음성 룰렛)
 
-## Getting Started
+> **"너의 목소리가 들려!"**  
+> 연인이나 소중한 사람을 위해 달콤한 목소리와 함께 소원, 벌칙, 선물을 담아 돌리는 커스텀 음성 룰렛 웹 애플리케이션입니다.
 
-First, run the development server:
+---
+
+## 📖 프로젝트 소개
+
+**Voice Roulette**은 단순한 뽑기 룰렛을 넘어, 각 항목마다 **직접 녹음한 목소리나 음성 메시지**를 담을 수 있는 인터랙티브 감성 룰렛입니다.  
+연인 간의 알콩달콩한 데이트 미션, 기념일 이벤트, 혹은 친구들과의 깜짝 선물 추첨 등 다양한 상황에서 특별한 추억을 선물할 수 있습니다.
+
+- **파스텔톤 감성 UI**: 부드러운 파스텔 그라데이션, 글래스모피즘, 젤리 애니메이션
+- **음성 녹음 & 자동 재생**: 브라우저 마이크로 직접 녹음하거나 오디오 파일 첨부
+- **가중치(확률) 커스텀**: 각 항목마다 당첨 확률(%)을 자유롭게 조정
+- **스마트 기회(Spin) 제어**: 일일 리셋, 누적 제한, 애교 보너스 기회 부여 기능
+- **전체 항목 한눈에 보기**: 룰렛 터치/클릭 시 항목, 확률, 음성 유무를 보여주는 모달 지원
+- **안전한 관리자 비밀번호 보호**: 비밀키/비밀번호 인증 시스템으로 제작자만 설정 수정 가능
+- **완벽한 모바일 뷰포트 최적화**: `100dvh` 기반 반응형으로 모바일 화면에서도 스크롤 없이 쏙 들어오는 레이아웃
+- **무설치 하이브리드 스토리지**: Supabase 클라우드 연동뿐만 아니라, 환경 변수 없이도 내장 서버/로컬 스토리지로 완전 동작
+
+---
+
+## ✨ 주요 기능 (Key Features)
+
+### 1. 🎡 HTML5 Canvas 기반의 부드러운 룰렛
+- **부드러운 감속 회전**: Cubic Ease-Out 알고리즘을 적용한 4.5초간의 자연스러운 회전 애니메이션
+- **Web Audio API 효과음**: 별도 음원 파일 로딩 없이 브라우저 내장 오디오 합성기로 룰렛 핀이 넘어가는 경쾌한 틱(`Tick`) 소리와 당첨 축하 팡파르(`Win Chime`) 실시간 생성
+- **가중치 기반 추첨 (Weighted Random)**: 설정된 % 확률에 정확하게 비례하여 당첨 구역 계산 및 정밀한 회전 각도 제어
+- **상단 하트 핀 & 시각적 피드백**: 회전 시 감속에 맞춰 바늘 소리가 재생되며, 당첨 구역의 중앙으로 정확하게 안착
+
+### 2. 📋 룰렛 전체 항목 모달 (ItemListModal)
+- **원터치 목록 확인**: 룰렛 휠을 터치하거나 클릭하면 전체 항목 목록 모달이 부드럽게 노출
+- **모바일 가독성 극대화**: 룰렛 부채꼴에 작은 글씨로 다 담기 어려운 긴 텍스트도 줄바꿈 형태로 온전하게 확인 가능
+- **항목별 상세 정보**: 각 항목의 배정 확률(%)과 음성 메시지 등록 여부(🔒 당첨 시 음성 공개 💕) 표시
+
+### 3. 🎙️ 목소리가 담긴 음성 메시지
+- **원클릭 브라우저 녹음**: `MediaRecorder` API를 활용하여 브라우저에서 즉시 음성 녹음 및 실시간 파형 모니터링
+- **오디오 파일 직접 업로드**: mp3, wav, m4a, webm 파일 첨부 지원
+- **당첨 시 자동 재생 & 축하 폭죽**: 당첨 즉시 화려한 Confetti 폭죽 효과와 함께 연인의 목소리가 자동으로 재생
+
+### 4. ⚙️ 자유로운 룰렛 커스텀 & 확률 설정
+- 항목 추가/삭제 (최대 10개, 최소 2개)
+- 항목별 파스텔 컬러 테마 지정
+- 확률 자동 균등 분할 기능 (원클릭 100% 균등 배분)
+- 실시간 확률 게이지 및 100% 검증 로직
+
+### 5. 🎟️ 정교한 스핀(기회) 관리 시스템
+- **리셋 모드 선택**:
+  - **매일 리셋 (`daily`)**: 매일 자정에 기본 횟수(예: 3회)로 자동 초기화
+  - **전체 기회 (`total`)**: 특정 이벤트 기간 동안 지정된 총 횟수만 소진
+- **보너스 기회 선물 & 차감**:
+  - "애교 부리면 1회 추가!", "미션 성공 시 3회 추가!" 등 관리자가 실시간으로 기회를 선물(`+1`, `+3`, `+5`, `-1`)
+- **유효 기간 설정**: 특정 기간(시작일시 ~ 종료일시)에만 룰렛을 플레이할 수 있도록 설정
+
+### 6. 🔐 안전한 2원화 링크 & 비밀번호 보호 체계
+- **플레이어 전용 링크 (`/game/[id]`)**:
+  - 상대방은 로그인이나 암호 입력 없이 링크 접속만으로 즉시 룰렛을 즐길 수 있음 (기존 `/r/[id]` 접속 시 자동 리다이렉트 호환)
+- **관리자 전용 세팅 링크 (`/settings/[id]`)**:
+  - 비밀번호 인증 카드(기본 비밀번호 `1234` 또는 방 고유 `edit_key`)를 통과해야만 설정 변경 가능
+  - 공유 링크에 키가 포함된 경우(`?key=[editKey]`) 자동 인증 처리 및 세션 스토리지 유지
+  - 기존 `/r/[id]/settings` 접근 시에도 신규 주소로 자동 전환
+- **범용 클립보드 복사 지원**:
+  - 최신 Clipboard API뿐만 아니라 모바일 브라우저 및 HTTP 환경(LAN IP 접속)에서도 동작하는 `execCommand` 폴백 내장
+
+---
+
+## 🏗️ 3단계 하이브리드 스토리지 아키텍처
+
+Voice Roulette은 별도의 외부 데이터베이스 설정 없이도 바로 동작하는 **JSON 파일 시스템 및 로컬 스토리지 구조**를 갖추고 있습니다:
+
+```
+[1순위] Next.js Server API & Local JSON Storage (data/*.json + public/uploads)
+   ↓ (서버 미응답 시 클라이언트 폴백)
+[2순위] 브라우저 LocalStorage & Base64 Data URL
+```
+
+1. **Server JSON File System**:
+   - 로컬 파일(`data/roulette.json`, `data/roulette_items.json`, `data/suggestions.json`, `public/uploads/`)을 통해 기기 간 완벽한 데이터 동기화 및 링크 공유 지원
+2. **Browser LocalStorage**:
+   - 오프라인 또는 독립 실행 시 브라우저 내부 저장소로 유연하게 동작
+
+---
+
+## 🛠️ 기술 스택 (Tech Stack)
+
+| 구분 | 사용 기술 | 설명 |
+|---|---|---|
+| **Framework** | **Next.js 16.3.5** | App Router 기반 최신 리액트 풀스택 프레임워크 |
+| **Library** | **React 19.2.8** | React 19 최신 훅 및 컴포넌트 아키텍처 |
+| **Language** | **TypeScript 5** | 정적 타입 시스템으로 높은 안정성 확보 |
+| **Styling** | **Tailwind CSS v4** | 최신 Tailwind v4 및 파스텔 글래스모피즘 디자인 |
+| **Canvas & FX** | **HTML5 Canvas 2D**, **canvas-confetti** | 60FPS 룰렛 렌더링 및 축하 파티클 애니메이션 |
+| **Audio** | **Web Audio API**, **MediaRecorder** | 무설치 오디오 합성기 및 브라우저 녹음 인터페이스 |
+| **Icons** | **Lucide React** | 모던하고 깔끔한 SVG 아이콘 세트 |
+| **Database** | **JSON File DB** | 서버 로컬 JSON 파일 기반 데이터 영구 보관 |
+
+---
+
+## 📁 디렉토리 구조 (Directory Structure)
+
+```
+voice_roulette/
+├── app/
+│   ├── api/
+│   │   ├── rooms/
+│   │   │   ├── [id]/route.ts       # 룸 단건 조회(GET) 및 스핀/보너스 차감(PATCH)
+│   │   │   └── route.ts            # 룸 및 아이템 신규 생성/수정(POST)
+│   │   └── upload/
+│   │       └── route.ts            # 음성 파일 로컬 업로드(/public/uploads)
+│   ├── game/
+│   │   └── [id]/page.tsx           # 플레이어 전용 룰렛 게임 화면 (/game/[id])
+│   ├── settings/
+│   │   ├── [id]/page.tsx           # 비밀번호 보호 관리자 룰렛 설정 화면 (/settings/[id])
+│   │   └── page.tsx                # 신규 룰렛 만들기 / 최근 룰렛 편집 화면 (/settings)
+│   ├── r/
+│   │   └── [id]/
+│   │       ├── page.tsx            # /game/[id] 하위 호환 리다이렉트
+│   │       └── settings/page.tsx   # /settings/[id] 하위 호환 리다이렉트
+│   ├── favicon.ico
+│   ├── globals.css                 # 전역 스타일, 애니메이션 키프레임, 글래스모피즘, 100dvh 레이아웃
+│   ├── layout.tsx                  # 루트 레이아웃 (한글 웹폰트 Gowun Dodum 로드)
+│   └── page.tsx                    # 메인 홈페이지 (기본 샘플 룰렛 플레이)
+├── components/
+│   ├── AudioRecorder.tsx           # 음성 녹음/업로드/재생/삭제 통합 컴포넌트
+│   ├── Header.tsx                  # 상단 헤더 네비게이션
+│   ├── ItemListModal.tsx           # 룰렛 클릭 시 노출되는 전체 항목/확률/음성 안내 모달
+│   ├── ResultModal.tsx             # 룰렛 당첨 결과 팝업 & 음성 재생 & 축하 폭죽
+│   ├── RouletteWheel.tsx           # HTML5 Canvas 회전 애니메이션 & 효과음 룰렛 휠
+│   ├── SettingsForm.tsx            # 룰렛 설정 폼 (아이템, 확률, 스핀, 기간, 관리자키)
+│   └── ShareModal.tsx              # 플레이 링크 & 관리자 링크 복사 공유 모달 (클립보드 폴백 지원)
+├── data/
+│   ├── roulette.json               # 서버 로컬 룸 저장소 (JSON 기반 DB)
+│   ├── roulette_items.json         # 서버 로컬 룰렛 아이템 저장소 (JSON 기반 DB)
+│   └── suggestions.json            # 500+개 프리셋 추천 문장 데이터셋
+├── lib/
+│   ├── serverStorage.ts            # 서버측 JSON 파일 I/O 유틸리티
+│   └── storage.ts                  # 서버 API 및 LocalStorage 브릿지
+├── public/
+│   └── uploads/                    # 로컬 업로드 음성 파일 보관 디렉토리
+├── types/
+│   └── roulette.ts                 # RouletteRoom, RouletteItem 등 핵심 타입 정의
+├── next.config.ts                  # 로컬 네트워크(LAN IP) HMR 허용 설정
+├── package.json                    # dev 스크립트에 -H 0.0.0.0 바인딩 적용
+└── README.md
+```
+
+---
+
+## 🚀 시작하기 (Getting Started)
+
+### 1. 패키지 설치
+
+```bash
+npm install
+```
+
+### 2. 개발 서버 실행
+
+별도의 외부 서비스 설정 없이도 바로 실행하여 모든 기능을 로컬에서 테스트할 수 있습니다.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **PC 브라우저 접속**: [http://localhost:3000](http://localhost:3000)
+- **모바일 기기 접속 (동일 Wi-Fi/LAN)**: `npm run dev`에 `-H 0.0.0.0`이 기본 설정되어 있어, 스마트폰 브라우저에서 `http://[개발PC_IP]:3000` (예: `http://192.168.0.15:3000`)으로 접속하면 스마트폰 화면과 마이크 녹음을 바로 테스트할 수 있습니다.
+- `next.config.ts`의 `allowedDevOrigins` 옵션이 적용되어 있어 모바일 접속 시에도 Hot Module Reloading이 끊김 없이 작동합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ⚙️ 환경 변수 설정 (.env)
 
-## Learn More
+루트 디렉토리의 `.env` 파일을 통해 세팅 기본 비밀번호와 마스터 관리자 비밀번호를 손쉽게 관리할 수 있습니다:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+# 룰렛 세팅 기본 관리자 비밀번호 (미지정 시 기본값: 1234)
+NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD=1234
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 통합 마스터 관리자 (/admin) 접속 비밀번호 (미지정 시 기본값: admin1234)
+ADMIN_PASSWORD=admin1234
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🎮 이용 가이드 (How to Play)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **룰렛 돌리기**: 메인의 [룰렛 돌리기! 💖] 버튼을 클릭하면 경쾌한 사운드와 함께 룰렛이 회전합니다.
+2. **전체 항목 확인**: 룰렛 판을 터치하거나 클릭하면 당첨 확률과 음성 메시지 등록 여부를 한눈에 볼 수 있는 팝업이 열립니다.
+3. **당첨 & 목소리 듣기**: 결과 모달에서 축하 폭죽과 함께 상대방이 녹음한 음성 메시지를 감상합니다.
+4. **새 룰렛 만들기**: 헤더 또는 설정 페이지(`/settings`)로 이동하여 둘만의 소원/벌칙 목록을 작성하고 직접 목소리를 녹음합니다.
+5. **확률 & 기회 조정**: 항목별 확률 합을 100%로 맞추거나 [균등 배분]을 클릭하고, 일일 기회 횟수를 지정합니다.
+6. **저장 및 공유**:
+   - **연인용 플레이 링크 (`/game/[id]`)**: 상대방에게 전송하여 바로 플레이하게 합니다.
+   - **관리자 전용 링크 (`/settings/[id]`)**: 설정한 관리자 비밀번호(기본: `1234`) 또는 비밀키로 보호되며, 언제든 기회를 보너스로 선물하거나 내용을 수정할 수 있습니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 📄 라이선스
+
+This project is licensed under the MIT License.
