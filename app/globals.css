@@ -9,30 +9,28 @@
     --card-border: rgba(255, 209, 220, 0.6);
   }
 
-  /* 기본적으로 전체 UI 텍스트 드래그 및 모바일 롱프레스 선택 방지 */
-  body,
-  div,
-  span,
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  button,
-  a,
-  label,
-  canvas,
-  svg {
+  /* 1. 전체 요소 기본: 텍스트 선택/드래그/모바일 롱프레스 팝업 및 터치 잔상 방지 */
+  *, *::before, *::after {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    -webkit-touch-callout: none; /* iOS Safari 롱프레스 호출 방지 */
+    -webkit-touch-callout: none; /* iOS 롱프레스 메뉴 방지 */
+    -webkit-tap-highlight-color: transparent; /* 모바일 터치 시 회색/파란색 음영 박스 제거 */
   }
 
-  /* input, textarea 및 명시적 텍스트 선택 요소는 정상 선택/입력 유지 */
+  /* 2. 이미지 및 링크 고스트 드래그 방지 */
+  img, a, svg, canvas {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+
+  /* 3. 모바일 더블탭 줌 방지 및 반응형 터치 최적화 */
+  button, a, input, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* 4. 실제 타이핑/수정 및 복사가 필요한 입력 필드는 정상 선택 및 입력 보장 */
   input,
   textarea,
   [contenteditable="true"],
