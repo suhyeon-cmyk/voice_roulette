@@ -31,7 +31,7 @@ export default function Header({
         </div>
         <div>
           <h1 className="text-lg font-black text-gray-800 tracking-tight group-hover:text-pink-600 transition-colors">
-            Voice Roulette
+            보이스 룰렛
           </h1>
           <p className="text-[11px] text-pink-400 font-medium -mt-0.5">
             두근두근 💕

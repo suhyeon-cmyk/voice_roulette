@@ -421,7 +421,7 @@ export default function SuperAdminPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white">
-                통합 마스터 관리자 콘솔
+                관리자 콘솔
               </h1>
               <span className="text-[10px] font-black text-pink-400 bg-pink-500/15 border border-pink-500/30 px-2 py-0.5 rounded-full uppercase">
                 Admin
@@ -563,8 +563,8 @@ export default function SuperAdminPage() {
                   type="button"
                   onClick={() => setModeFilter(mode.key)}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${modeFilter === mode.key
-                      ? 'bg-pink-500 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
+                    ? 'bg-pink-500 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
                     }`}
                 >
                   {mode.label}
@@ -638,8 +638,8 @@ export default function SuperAdminPage() {
                         {/* 확률 합계 뱃지 */}
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${totalProbability === 100
-                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                             }`}
                         >
                           확률 합계: {totalProbability}%
@@ -744,8 +744,8 @@ export default function SuperAdminPage() {
                             disabled={isActionLoading}
                             onClick={() => handleAdjustSpin(roulette.id, 'adjust_bonus', delta)}
                             className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ${delta > 0
-                                ? 'bg-pink-500/15 hover:bg-pink-500/30 text-pink-300 border-pink-500/30'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                              ? 'bg-pink-500/15 hover:bg-pink-500/30 text-pink-300 border-pink-500/30'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                               }`}
                           >
                             {delta > 0 ? `+${delta}` : delta}

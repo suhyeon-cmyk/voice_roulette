@@ -9,7 +9,7 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Voice Roulette 💕",
+  title: "보이스 룰렛 💕",
   description: "세상에 단 하나뿐인 우리만의 룰렛을 돌려보세요!",
   icons: {
     icon: [
@@ -24,29 +24,29 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     url: siteUrl,
-    siteName: "Voice Roulette",
-    title: "Voice Roulette 💕",
+    siteName: "보이스 룰렛",
+    title: "보이스 룰렛 💕",
     description: "세상에 단 하나뿐인 우리만의 룰렛을 돌려보세요!",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 675,
-        alt: "Voice Roulette 썸네일",
+        alt: "보이스 룰렛 썸네일",
         type: "image/jpeg",
       },
       {
         url: "/og-image.png",
         width: 1200,
         height: 675,
-        alt: "Voice Roulette 썸네일",
+        alt: "보이스 룰렛 썸네일",
         type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Voice Roulette 💕",
+    title: "보이스 룰렛 💕",
     description: "세상에 단 하나뿐인 우리만의 룰렛을 돌려보세요!",
     images: ["/og-image.jpg"],
   },

@@ -579,7 +579,7 @@ export default function SettingsForm({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-pink-600 font-extrabold text-xs sm:text-sm">
             <Percent className="w-3.5 sm:w-4 h-3.5 sm:h-4 flex-shrink-0" />
-            <span>아이템 목록 및 음성 녹음 맵핑</span>
+            <span>옵션 추가 / 확률 설정</span>
           </div>
 
           {/* 확률 균등 배분 버튼 */}
@@ -950,8 +950,8 @@ export default function SettingsForm({
           }}
           disabled={saving}
           className={`flex-1 py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-transform active:scale-98 ${!isProbabilityValid
-              ? 'bg-gray-300 hover:bg-gray-400 text-gray-600 cursor-not-allowed opacity-80'
-              : 'bg-gradient-to-r from-pink-500 via-rose-400 to-pink-500 hover:from-pink-600 hover:to-rose-500 text-white animate-jelly'
+            ? 'bg-gray-300 hover:bg-gray-400 text-gray-600 cursor-not-allowed opacity-80'
+            : 'bg-gradient-to-r from-pink-500 via-rose-400 to-pink-500 hover:from-pink-600 hover:to-rose-500 text-white animate-jelly'
             }`}
           title={!isProbabilityValid ? `확률의 합이 100%가 되어야 저장할 수 있습니다. (현재 ${totalProbability}%)` : undefined}
         >
