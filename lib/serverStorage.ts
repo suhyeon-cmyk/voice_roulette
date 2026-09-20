@@ -17,15 +17,6 @@ const ROULETTE_FILE = path.join(DATA_DIR, 'roulette.json');
 const ROULETTE_ITEMS_FILE = path.join(DATA_DIR, 'roulette_items.json');
 const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __vr_roulettes_cache: RouletteData[] | undefined;
-  // eslint-disable-next-line no-var
-  var __vr_items_cache: RouletteItem[] | undefined;
-  // eslint-disable-next-line no-var
-  var __vr_admin_cache: { password?: string; updated_at?: string } | undefined;
-}
-
 function ensureDataDir() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -35,61 +26,59 @@ function ensureDataDir() {
 }
 
 export function getAllServerRoulettes(): RouletteData[] {
-  if (Array.isArray(globalThis.__vr_roulettes_cache)) {
-    return globalThis.__vr_roulettes_cache;
-  }
   ensureDataDir();
   try {
     if (fs.existsSync(ROULETTE_FILE)) {
       const raw = fs.readFileSync(ROULETTE_FILE, 'utf-8');
-      const roulettes = JSON.parse(raw);
-      if (Array.isArray(roulettes)) {
-        globalThis.__vr_roulettes_cache = roulettes;
-        return roulettes;
+      if (raw.trim()) {
+        const roulettes = JSON.parse(raw);
+        if (Array.isArray(roulettes)) {
+          return roulettes;
+        }
       }
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error reading roulettes file:', err);
+  }
 
-  const initial: RouletteData[] = [];
-  globalThis.__vr_roulettes_cache = initial;
-  return initial;
+  return [];
 }
 
 export function saveAllServerRoulettes(roulettes: RouletteData[]) {
-  globalThis.__vr_roulettes_cache = roulettes;
   ensureDataDir();
   try {
     fs.writeFileSync(ROULETTE_FILE, JSON.stringify(roulettes, null, 2), 'utf-8');
-  } catch {}
+  } catch (err) {
+    console.error('Error writing roulettes file:', err);
+  }
 }
 
 export function getAllServerItems(): RouletteItem[] {
-  if (Array.isArray(globalThis.__vr_items_cache)) {
-    return globalThis.__vr_items_cache;
-  }
   ensureDataDir();
   try {
     if (fs.existsSync(ROULETTE_ITEMS_FILE)) {
       const raw = fs.readFileSync(ROULETTE_ITEMS_FILE, 'utf-8');
-      const items = JSON.parse(raw);
-      if (Array.isArray(items)) {
-        globalThis.__vr_items_cache = items;
-        return items;
+      if (raw.trim()) {
+        const items = JSON.parse(raw);
+        if (Array.isArray(items)) {
+          return items;
+        }
       }
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error reading items file:', err);
+  }
 
-  const initial: RouletteItem[] = [];
-  globalThis.__vr_items_cache = initial;
-  return initial;
+  return [];
 }
 
 export function saveAllServerItems(items: RouletteItem[]) {
-  globalThis.__vr_items_cache = items;
   ensureDataDir();
   try {
     fs.writeFileSync(ROULETTE_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
-  } catch {}
+  } catch (err) {
+    console.error('Error writing items file:', err);
+  }
 }
 
 export function getPresetRecommendations(): string[] {
@@ -171,32 +160,34 @@ export function getAllServerRoulettesWithStats(): AdminRouletteStats[] {
 }
 
 export function getMasterAdminPassword(): string {
-  if (globalThis.__vr_admin_cache?.password) {
-    return globalThis.__vr_admin_cache.password;
-  }
   ensureDataDir();
   try {
     if (fs.existsSync(ADMIN_CONFIG_FILE)) {
       const raw = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf-8');
-      const data = JSON.parse(raw);
-      if (data && data.password) {
-        globalThis.__vr_admin_cache = data;
-        return data.password;
+      if (raw.trim()) {
+        const data = JSON.parse(raw);
+        if (data && typeof data.password === 'string' && data.password.trim()) {
+          return data.password.trim();
+        }
       }
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error reading admin config file:', err);
+  }
   return process.env.ADMIN_PASSWORD || 'admin1234';
 }
 
 export function saveMasterAdminPassword(newPassword: string): boolean {
-  globalThis.__vr_admin_cache = {
-    password: newPassword,
-    updated_at: new Date().toISOString(),
-  };
   ensureDataDir();
   try {
-    fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(globalThis.__vr_admin_cache, null, 2), 'utf-8');
-  } catch {}
+    const payload = {
+      password: newPassword,
+      updated_at: new Date().toISOString(),
+    };
+    fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing admin config file:', err);
+  }
 
   // Also sync with .env file if in a writable local dev environment
   try {
@@ -210,7 +201,9 @@ export function saveMasterAdminPassword(newPassword: string): boolean {
       }
       fs.writeFileSync(envPath, content, 'utf-8');
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error updating .env file:', err);
+  }
 
   return true;
 }

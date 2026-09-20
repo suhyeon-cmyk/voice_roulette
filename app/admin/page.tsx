@@ -484,58 +484,66 @@ export default function SuperAdminPage() {
       </header>
 
       {/* 2. 대시보드 메인 본문 */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 flex flex-col gap-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
         {/* 통계 요약 카드 4종 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-pink-400" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-5">
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                <Layers className="w-3.5 h-3.5" />
+              </span>
               <span>총 룰렛 수</span>
             </span>
-            <span className="text-2xl font-black text-white">
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalRoulettes ?? 0}
-              <span className="text-xs font-normal text-slate-400 ml-1">개</span>
+              <span className="text-xs font-normal text-slate-400 ml-1.5">개</span>
             </span>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
               <span>총 등록 항목</span>
             </span>
-            <span className="text-2xl font-black text-white">
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalItems ?? 0}
-              <span className="text-xs font-normal text-slate-400 ml-1">개</span>
+              <span className="text-xs font-normal text-slate-400 ml-1.5">개</span>
             </span>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-              <Volume2 className="w-3.5 h-3.5 text-purple-400" />
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <Volume2 className="w-3.5 h-3.5" />
+              </span>
               <span>녹음된 음성 수</span>
             </span>
-            <span className="text-2xl font-black text-white">
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalAudios ?? 0}
-              <span className="text-xs font-normal text-slate-400 ml-1">개</span>
+              <span className="text-xs font-normal text-slate-400 ml-1.5">개</span>
             </span>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Zap className="w-3.5 h-3.5" />
+              </span>
               <span>전체 활성 잔여 스핀</span>
             </span>
-            <span className="text-2xl font-black text-white">
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalActiveSpins ?? 0}
-              <span className="text-xs font-normal text-slate-400 ml-1">회</span>
+              <span className="text-xs font-normal text-slate-400 ml-1.5">회</span>
             </span>
           </div>
         </div>
 
         {/* 3. 검색 / 필터 / 정렬 컨트롤 바 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* 검색창 */}
-          <div className="relative flex-1">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 sm:p-4 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+          {/* 검색창: max-w로 자연스럽게 정돈 */}
+          <div className="relative flex-1 lg:max-w-md xl:max-w-lg">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -546,7 +554,7 @@ export default function SuperAdminPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             {/* 리셋 모드 필터 */}
             <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
               <Filter className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
@@ -573,7 +581,7 @@ export default function SuperAdminPage() {
             </div>
 
             {/* 정렬 드롭다운 */}
-            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300">
+            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={sortBy}
@@ -599,9 +607,11 @@ export default function SuperAdminPage() {
           </div>
 
           {filteredRoulettes.length === 0 ? (
-            <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center gap-3">
-              <Sparkles className="w-10 h-10 text-slate-600" />
-              <h3 className="text-base font-bold text-slate-300">등록된 룰렛이 없습니다.</h3>
+            <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-3xl py-16 sm:py-20 px-6 text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-slate-800/60 border border-slate-700/50 flex items-center justify-center text-slate-400 mb-1 shadow-inner">
+                <Sparkles className="w-7 h-7 text-slate-500" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-200">등록된 룰렛이 없습니다.</h3>
               <p className="text-xs text-slate-500 max-w-sm">
                 사용자가 생성한 룰렛이 없거나 검색 필터 조건과 일치하는 항목이 없습니다.
               </p>
@@ -688,9 +698,9 @@ export default function SuperAdminPage() {
                   </div>
 
                   {/* 카드 중간: 비밀번호 + 스핀 현황 및 빠른 조작 바 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
                     {/* 1) 룰렛 비밀번호 (edit_key) */}
-                    <div className="flex flex-col gap-1.5 justify-center">
+                    <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-1.5 justify-center">
                       <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                         <KeyRound className="w-3.5 h-3.5 text-pink-400" />
                         <span>설정 비밀번호 (개별 룰렛 설정키)</span>
@@ -723,7 +733,7 @@ export default function SuperAdminPage() {
                     </div>
 
                     {/* 2) 스핀 수치 현황 및 즉시 조작 (+1, -1, +5, -5, 리셋) */}
-                    <div className="flex flex-col gap-1.5 justify-center">
+                    <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-1.5 justify-center lg:border-l lg:border-slate-800/80 lg:pl-4">
                       <div className="flex items-center justify-between text-[11px] font-bold">
                         <span className="text-slate-400 flex items-center gap-1">
                           <Zap className="w-3.5 h-3.5 text-amber-400" />
@@ -756,7 +766,7 @@ export default function SuperAdminPage() {
                           type="button"
                           disabled={isActionLoading}
                           onClick={() => handleAdjustSpin(roulette.id, 'consume')}
-                          className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold transition-transform active:scale-95 cursor-pointer disabled:opacity-50 ml-auto"
+                          className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold transition-transform active:scale-95 cursor-pointer disabled:opacity-50 sm:ml-auto"
                           title="룰렛 1회 돌린 것으로 처리 (사용 스핀 +1)"
                         >
                           1회 소모
@@ -788,7 +798,7 @@ export default function SuperAdminPage() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
                       {items.map((it, idx) => (
                         <div
                           key={it.id || idx}
