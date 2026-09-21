@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = getAllServerRoulettesWithStats();
+    const data = await getAllServerRoulettesWithStats();
     const roulettesWithDetails = data.map((item) => {
       const { remaining, isValidPeriod } = calculateRemainingSpins(item.roulette);
       return {

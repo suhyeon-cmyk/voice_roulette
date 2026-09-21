@@ -65,18 +65,23 @@
 
 ---
 
-## 🏗️ 3단계 하이브리드 스토리지 아키텍처
+---
 
-보이스 룰렛은 별도의 외부 데이터베이스 설정 없이도 바로 동작하는 **JSON 파일 시스템 및 로컬 스토리지 구조**를 갖추고 있습니다:
+## 🏗️ 하이브리드 스토리지 & Supabase 클라우드 아키텍처
+
+보이스 룰렛은 **Supabase Database(PostgreSQL)** 및 **Supabase Storage(음성 파일)**를 메인 저장소로 사용하며, 클라이언트 캐시 및 오프라인 폴백을 위한 브라우저 로컬 스토리지를 함께 갖추고 있습니다:
 
 ```
-[1순위] Next.js Server API & Local JSON Storage (data/*.json + public/uploads)
-   ↓ (서버 미응답 시 클라이언트 폴백)
+[1순위] Supabase Cloud (PostgreSQL DB + Storage Bucket 'voice-messages')
+   ↓ (클라우드 미설정 또는 네트워크 단절 시 클라이언트 폴백)
 [2순위] 브라우저 LocalStorage & Base64 Data URL
 ```
 
-1. **Server JSON File System**:
-   - 로컬 파일(`data/roulette.json`, `data/roulette_items.json`, `data/suggestions.json`, `public/uploads/`)을 통해 기기 간 완벽한 데이터 동기화 및 링크 공유 지원
+1. **Supabase Cloud (PostgreSQL & Storage)**:
+   - `roulettes`: 룰렛 제목, 리셋 모드, 기본/보너스/사용 스핀 수, 유효기간, 개별 설정 키 저장
+   - `roulette_items`: 항목 제목, 확률, 오디오 URL, 컬러, 정렬 순서 저장
+   - `admin_settings`: 마스터 관리자 비밀번호 등 시스템 설정값 보관
+   - `voice-messages` 버킷: 사용자가 녹음 및 업로드한 음성 오디오 파일 영구 보관 (Public CDN URL 제공)
 2. **Browser LocalStorage**:
    - 오프라인 또는 독립 실행 시 브라우저 내부 저장소로 유연하게 동작
 
@@ -90,10 +95,11 @@
 | **Library** | **React 19.2.8** | React 19 최신 훅 및 컴포넌트 아키텍처 |
 | **Language** | **TypeScript 5** | 정적 타입 시스템으로 높은 안정성 확보 |
 | **Styling** | **Tailwind CSS v4** | 최신 Tailwind v4 및 파스텔 글래스모피즘 디자인 |
+| **Database** | **Supabase (PostgreSQL)** | 룰렛 메타데이터 및 항목 관계형 데이터베이스 |
+| **Storage** | **Supabase Storage** | 녹음된 음성 메시지(audio) 오브젝트 스토리지 |
 | **Canvas & FX** | **HTML5 Canvas 2D**, **canvas-confetti** | 60FPS 룰렛 렌더링 및 축하 파티클 애니메이션 |
 | **Audio** | **Web Audio API**, **MediaRecorder** | 무설치 오디오 합성기 및 브라우저 녹음 인터페이스 |
 | **Icons** | **Lucide React** | 모던하고 깔끔한 SVG 아이콘 세트 |
-| **Database** | **JSON File DB** | 서버 로컬 JSON 파일 기반 데이터 영구 보관 |
 
 ---
 
@@ -106,13 +112,15 @@ voice_roulette/
 │   │   └── page.tsx                # 관리자 콘솔 (/admin)
 │   ├── api/
 │   │   ├── admin/
-│   │   │   ├── auth/route.ts       # 마스터 관리자 로그인 및 비밀번호 변경 API
-│   │   │   └── roulettes/route.ts  # 전체 룰렛 조회 및 관리자 삭제 API
-│   │   ├── roulettes/
-│   │   │   ├── [id]/route.ts       # 룰렛 단건 조회(GET) 및 스핀/보너스 차감(PATCH)
-│   │   │   └── route.ts            # 룰렛 및 아이템 신규 생성/수정(POST)
+│   │   │   ├── auth/route.ts       # 마스터 관리자 로그인 API
+│   │   │   ├── password/route.ts   # 마스터 관리자 비밀번호 변경 API
+│   │   │   └── roulette/route.ts   # 전체 룰렛 통계 및 관리자 조회 API
+│   │   ├── recommendations/route.ts # 추천 문구 검색 API
+│   │   ├── roulette/
+│   │   │   ├── [id]/route.ts       # 룰렛 단건 조회(GET), 스핀 차감/리셋(PATCH), 삭제(DELETE)
+│   │   │   └── route.ts            # 전체 룰렛 조회(GET) 및 룰렛/아이템 저장(POST)
 │   │   └── upload/
-│   │       └── route.ts            # 음성 파일 로컬 업로드(/public/uploads)
+│   │       └── route.ts            # 음성 파일 Supabase Storage 업로드
 │   ├── game/
 │   │   └── [id]/page.tsx           # 플레이어 전용 룰렛 게임 화면 (/game/[id])
 │   ├── settings/
@@ -120,11 +128,10 @@ voice_roulette/
 │   │   └── page.tsx                # 신규 룰렛 만들기 / 최근 룰렛 편집 화면 (/settings)
 │   ├── r/
 │   │   └── [id]/
-│   │       ├── page.tsx            # /game/[id] 하위 호환 리다이렉트
-│   │       └── settings/page.tsx   # /settings/[id] 하위 호환 리다이렉트
+│   │       └── page.tsx            # /game/[id] 하위 호환 리다이렉트
 │   ├── favicon.ico
-│   ├── globals.css                 # 전역 스타일, 애니메이션 키프레임, 글래스모피즘, 100dvh 레이아웃
-│   ├── layout.tsx                  # 루트 레이아웃 (한글 웹폰트 Gowun Dodum 로드 및 메타데이터)
+│   ├── globals.css                 # 전역 스타일, 애니메이션 키프레임, 글래스모피즘
+│   ├── layout.tsx                  # 루트 레이아웃
 │   └── page.tsx                    # 메인 홈페이지 (/ -> 신규 룰렛 생성 화면)
 ├── components/
 │   ├── AudioRecorder.tsx           # 음성 녹음/업로드/재생/삭제 통합 컴포넌트
@@ -133,22 +140,19 @@ voice_roulette/
 │   ├── ResultModal.tsx             # 룰렛 당첨 결과 팝업 & 음성 재생 & 축하 폭죽
 │   ├── RouletteWheel.tsx           # HTML5 Canvas 회전 애니메이션 & 효과음 룰렛 휠
 │   ├── SettingsForm.tsx            # 룰렛 설정 폼 (아이템, 확률, 스핀, 기간, 관리자키)
-│   └── ShareModal.tsx              # 플레이 링크 & 관리자 링크 복사 공유 모달 (클립보드 폴백 지원)
+│   └── ShareModal.tsx              # 플레이 링크 & 관리자 링크 복사 공유 모달
 ├── data/
-│   ├── admin.json                  # 마스터 관리자 비밀번호 저장소
-│   ├── roulette.json               # 서버 로컬 룰렛 저장소 (JSON 기반 DB)
-│   ├── roulette_items.json         # 서버 로컬 룰렛 아이템 저장소 (JSON 기반 DB)
 │   └── suggestions.json            # 500+개 프리셋 추천 문장 데이터셋
 ├── lib/
-│   ├── serverStorage.ts            # 서버측 JSON 파일 I/O 및 마스터 관리자 인증 로직
-│   └── storage.ts                  # 서버 API 및 LocalStorage 브릿지
-├── public/
-│   └── uploads/                    # 로컬 업로드 음성 파일 보관 디렉토리
+│   ├── serverStorage.ts            # Supabase DB 연동 비동기 CRUD 로직
+│   ├── storage.ts                  # Server API 및 LocalStorage 브릿지
+│   ├── supabase.ts                 # Supabase 클라이언트 및 Storage 헬퍼
+│   ├── sound.ts                    # Web Audio API 사운드 합성기
+│   └── colorUtils.ts               # 파스텔 색상 유틸리티
+├── supabase_schema.sql             # Supabase 테이블 및 Storage 버킷 DDL 스크립트
 ├── types/
-│   └── roulette.ts                 # RouletteRoom, RouletteItem 등 핵심 타입 정의
-├── next.config.ts                  # 로컬 네트워크(LAN IP) HMR 허용 설정
-├── package.json                    # dev 스크립트에 -H 0.0.0.0 바인딩 적용
-├── .vercelignore                   # Vercel 배포 시 제외할 데이터 파일 설정
+│   └── roulette.ts                 # 룰렛 데이터 타입 정의
+├── next.config.ts                  # Next.js 설정
 └── README.md
 ```
 
@@ -162,52 +166,48 @@ voice_roulette/
 npm install
 ```
 
-### 2. 개발 서버 실행
+### 2. Supabase 데이터베이스 및 스토리지 설정
 
-별도의 외부 서비스 설정 없이도 바로 실행하여 모든 기능을 로컬에서 테스트할 수 있습니다.
+1. [Supabase](https://supabase.com/)에서 새 프로젝트를 생성합니다.
+2. 프로젝트 대시보드의 **SQL Editor** 메뉴로 이동합니다.
+3. 프로젝트 루트의 `supabase_schema.sql` 파일 내용을 복사하여 실행(Run)합니다:
+   - `roulettes`, `roulette_items`, `admin_settings` 테이블이 생성됩니다.
+   - `voice-messages` Storage 버킷 및 퍼블릭 접근 RLS 정책이 자동으로 구성됩니다.
+4. Supabase 프로젝트의 **Project Settings ➔ API**에서 URL과 Key를 확인합니다.
+
+### 3. 환경 변수 설정 (.env)
+
+`.env` 파일에 발급받은 Supabase 정보를 입력합니다:
+
+```env
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+SUPABASE_STORAGE_BUCKET=voice-messages
+
+# 룰렛 세팅 기본 관리자 비밀번호 (미지정 시 1234)
+NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD=1234
+
+# 통합 마스터 관리자 (/admin) 접속 비밀번호 (미지정 시 admin1234)
+ADMIN_PASSWORD=admin1234
+```
+
+### 4. 개발 서버 실행
 
 ```bash
 npm run dev
 ```
 
 - **PC 브라우저 접속**: [http://localhost:3000](http://localhost:3000)
-- **모바일 기기 접속 (동일 Wi-Fi/LAN)**: `npm run dev`에 `-H 0.0.0.0`이 기본 설정되어 있어, 스마트폰 브라우저에서 `http://[개발PC_IP]:3000` (예: `http://192.168.0.15:3000`)으로 접속하면 스마트폰 화면과 마이크 녹음을 바로 테스트할 수 있습니다.
-- `next.config.ts`의 `allowedDevOrigins` 옵션이 적용되어 있어 모바일 접속 시에도 Hot Module Reloading이 끊김 없이 작동합니다.
-
----
-
-## ⚙️ 환경 변수 설정 (.env)
-
-루트 디렉토리의 `.env` 파일을 통해 세팅 기본 비밀번호와 마스터 관리자 비밀번호를 손쉽게 관리할 수 있습니다:
-
-```env
-# 룰렛 세팅 기본 관리자 비밀번호 (미지정 시 기본값: 1234)
-NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD=1234
-
-# 통합 마스터 관리자 (/admin) 접속 비밀번호 (미지정 시 기본값: admin1234)
-ADMIN_PASSWORD=admin1234
-```
+- **모바일 기기 접속 (동일 Wi-Fi/LAN)**: `npm run dev`에 `-H 0.0.0.0`이 기본 설정되어 있어 스마트폰 브라우저에서 `http://[개발PC_IP]:3000`으로 접속하여 테스트할 수 있습니다.
 
 ---
 
 ## 🔐 마스터 관리자 비밀번호 분실 시 복구 가이드
 
-개발자이시기 때문에 절대 영구적으로 잠기거나 잃어버릴 걱정이 없습니다! 언제든지 100% 초기화 및 복구할 수 있는 방법이 마련되어 있습니다.
-
-### 1. Vercel 배포 환경에서 잊어버린 경우 (가장 간단 ✨)
-Vercel 대시보드에서 환경 변수를 수정하여 언제든지 즉시 새 비밀번호로 덮어쓸 수 있습니다.
-1. [Vercel 대시보드](https://vercel.com/) 접속 ➔ 해당 프로젝트(`voice_roulette`) 선택
-2. **Settings** ➔ **Environment Variables** 메뉴 이동
-3. `ADMIN_PASSWORD` 변수 추가 또는 수정 (예: `ADMIN_PASSWORD=새로운비밀번호`)
-4. **Deployments** 탭에서 최신 배포를 **[Redeploy]** 해주시면, 방금 설정한 새 비밀번호로 즉시 로그인됩니다.
-
-### 2. 로컬 개발 환경에서 잊어버린 경우
-로컬 컴퓨터에서는 파일로 직접 초기화할 수 있습니다.
-- **방법 A (직접 수정)**: `data/admin.json` 파일을 열어서 `"password": "원하는비밀번호"`로 직접 수정
-- **방법 B (파일 삭제)**: `data/admin.json` 파일을 아예 삭제하면, `.env`의 `ADMIN_PASSWORD` 또는 기본값인 **`admin1234`**로 즉시 초기화됩니다.
-
-### 3. 아무것도 설정하지 않았을 때의 기본 비밀번호
-별도로 비밀번호를 변경하지 않았거나 파일/환경변수가 비어있는 상태의 시스템 기본 마스터 비밀번호는 **`admin1234`**입니다.
+- **방법 A (Supabase 대시보드 직접 수정)**: Supabase 대시보드 ➔ `admin_settings` 테이블에서 `key = 'master_password'` 행의 `value`를 원하는 비밀번호로 변경
+- **방법 B (환경 변수 재설정)**: `.env` 또는 Vercel 환경 변수의 `ADMIN_PASSWORD`를 새로 설정하면 기본 폴백으로 즉시 반영됩니다.
 
 > 🔒 **요약**: 비밀번호를 분실하더라도 Vercel의 `ADMIN_PASSWORD` 환경 변수를 통해 언제든 원하는 비밀번호로 강제 재설정할 수 있습니다!
 

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const currentMaster = getMasterAdminPassword();
+    const currentMaster = await getMasterAdminPassword();
     if (currentPassword.trim() !== currentMaster) {
       return NextResponse.json(
         { success: false, error: '현재 마스터 관리자 비밀번호가 일치하지 않습니다.' },
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    saveMasterAdminPassword(trimmedNew);
+    await saveMasterAdminPassword(trimmedNew);
 
     return NextResponse.json({
       success: true,

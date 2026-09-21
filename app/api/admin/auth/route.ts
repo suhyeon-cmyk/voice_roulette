@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { password } = body;
 
-    const masterPassword = getMasterAdminPassword();
+    const masterPassword = await getMasterAdminPassword();
 
     if (password && password.trim() === masterPassword) {
       return NextResponse.json({ success: true });

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getServerRouletteData,
-  getAllServerRoulettes,
-  saveAllServerRoulettes,
+  updateRouletteSpins,
   deleteServerRoulette,
 } from '@/lib/serverStorage';
 import { calculateRemainingSpins } from '@/lib/storage';
@@ -15,7 +14,7 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const data = getServerRouletteData(id);
+    const data = await getServerRouletteData(id);
 
     if (!data) {
       return NextResponse.json({ error: 'Roulette not found' }, { status: 404 });
@@ -24,14 +23,13 @@ export async function GET(
     const { remaining, isValidPeriod, isDateReset } = calculateRemainingSpins(data.roulette);
 
     if (isDateReset) {
-      const roulettes = getAllServerRoulettes();
-      const r = roulettes.find((item) => item.id === id);
-      if (r) {
-        r.used_spins = 0;
-        r.last_reset_date = new Date().toISOString().slice(0, 10);
-        saveAllServerRoulettes(roulettes);
-        data.roulette.used_spins = 0;
-        data.roulette.last_reset_date = r.last_reset_date;
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = await updateRouletteSpins(id, {
+        used_spins: 0,
+        last_reset_date: today,
+      });
+      if (updated) {
+        data.roulette = updated;
       }
     }
 
@@ -56,37 +54,44 @@ export async function PATCH(
     const body = await request.json();
     const { action, delta } = body;
 
-    const roulettes = getAllServerRoulettes();
-    const roulette = roulettes.find((r) => r.id === id);
-
-    if (!roulette) {
+    const data = await getServerRouletteData(id);
+    if (!data || !data.roulette) {
       return NextResponse.json({ error: 'Roulette not found' }, { status: 404 });
     }
 
+    const currentRoulette = data.roulette;
+    const today = new Date().toISOString().slice(0, 10);
+
     if (action === 'consume') {
-      roulette.used_spins = (roulette.used_spins || 0) + 1;
-      roulette.last_reset_date = new Date().toISOString().slice(0, 10);
-      saveAllServerRoulettes(roulettes);
-      const { remaining } = calculateRemainingSpins(roulette);
-      return NextResponse.json({ success: true, remaining_spins: remaining, roulette });
+      const newUsed = (currentRoulette.used_spins || 0) + 1;
+      const updated = await updateRouletteSpins(id, {
+        used_spins: newUsed,
+        last_reset_date: today,
+      });
+      const activeRoulette = updated || { ...currentRoulette, used_spins: newUsed, last_reset_date: today };
+      const { remaining } = calculateRemainingSpins(activeRoulette);
+      return NextResponse.json({ success: true, remaining_spins: remaining, roulette: activeRoulette });
     }
 
     if (action === 'adjust_bonus') {
-      roulette.bonus_spins = (roulette.bonus_spins || 0) + (Number(delta) || 0);
-      roulette.updated_at = new Date().toISOString();
-      saveAllServerRoulettes(roulettes);
-      const { remaining } = calculateRemainingSpins(roulette);
-      return NextResponse.json({ success: true, remaining_spins: remaining, roulette });
+      const newBonus = (currentRoulette.bonus_spins || 0) + (Number(delta) || 0);
+      const updated = await updateRouletteSpins(id, {
+        bonus_spins: newBonus,
+      });
+      const activeRoulette = updated || { ...currentRoulette, bonus_spins: newBonus };
+      const { remaining } = calculateRemainingSpins(activeRoulette);
+      return NextResponse.json({ success: true, remaining_spins: remaining, roulette: activeRoulette });
     }
 
     if (action === 'reset_spins') {
-      roulette.used_spins = 0;
-      roulette.bonus_spins = 0;
-      roulette.last_reset_date = new Date().toISOString().slice(0, 10);
-      roulette.updated_at = new Date().toISOString();
-      saveAllServerRoulettes(roulettes);
-      const { remaining } = calculateRemainingSpins(roulette);
-      return NextResponse.json({ success: true, remaining_spins: remaining, roulette });
+      const updated = await updateRouletteSpins(id, {
+        used_spins: 0,
+        bonus_spins: 0,
+        last_reset_date: today,
+      });
+      const activeRoulette = updated || { ...currentRoulette, used_spins: 0, bonus_spins: 0, last_reset_date: today };
+      const { remaining } = calculateRemainingSpins(activeRoulette);
+      return NextResponse.json({ success: true, remaining_spins: remaining, roulette: activeRoulette });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
@@ -102,9 +107,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    const deleted = deleteServerRoulette(id);
+    const deleted = await deleteServerRoulette(id);
     if (!deleted) {
-      return NextResponse.json({ error: 'Roulette not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Roulette not found or delete failed' }, { status: 404 });
     }
     return NextResponse.json({ success: true, message: 'Roulette deleted' });
   } catch (err: unknown) {

@@ -5,8 +5,13 @@ import { RouletteData, RouletteItem } from '@/types/roulette';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const roulettes = getAllServerRoulettes();
-  return NextResponse.json({ roulettes });
+  try {
+    const roulettes = await getAllServerRoulettes();
+    return NextResponse.json({ roulettes });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -19,7 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid roulette data' }, { status: 400 });
     }
 
-    const updated = upsertServerRoulette(roulette, items || []);
+    const updated = await upsertServerRoulette(roulette, items || []);
+
+    if (!updated) {
+      return NextResponse.json({ error: 'Failed to upsert roulette' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -28,6 +37,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error('Error in POST /api/roulette:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

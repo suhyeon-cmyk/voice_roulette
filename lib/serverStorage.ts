@@ -1,137 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { RouletteItem, RouletteData } from '@/types/roulette';
-
+import { getSupabaseAdmin } from './supabase';
 import defaultSuggestionsData from '@/data/suggestions.json';
-
-const IS_SERVERLESS = Boolean(
-  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NOW_REGION
-);
-
-const DATA_DIR = IS_SERVERLESS
-  ? path.join(os.tmpdir(), 'voice_roulette_data')
-  : path.join(process.cwd(), 'data');
-
-const ROULETTE_FILE = path.join(DATA_DIR, 'roulette.json');
-const ROULETTE_ITEMS_FILE = path.join(DATA_DIR, 'roulette_items.json');
-const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
-
-function ensureDataDir() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-  } catch {}
-}
-
-export function getAllServerRoulettes(): RouletteData[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(ROULETTE_FILE)) {
-      const raw = fs.readFileSync(ROULETTE_FILE, 'utf-8');
-      if (raw.trim()) {
-        const roulettes = JSON.parse(raw);
-        if (Array.isArray(roulettes)) {
-          return roulettes;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error reading roulettes file:', err);
-  }
-
-  return [];
-}
-
-export function saveAllServerRoulettes(roulettes: RouletteData[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(ROULETTE_FILE, JSON.stringify(roulettes, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing roulettes file:', err);
-  }
-}
-
-export function getAllServerItems(): RouletteItem[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(ROULETTE_ITEMS_FILE)) {
-      const raw = fs.readFileSync(ROULETTE_ITEMS_FILE, 'utf-8');
-      if (raw.trim()) {
-        const items = JSON.parse(raw);
-        if (Array.isArray(items)) {
-          return items;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error reading items file:', err);
-  }
-
-  return [];
-}
-
-export function saveAllServerItems(items: RouletteItem[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(ROULETTE_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing items file:', err);
-  }
-}
-
-export function getPresetRecommendations(): string[] {
-  return Array.isArray(defaultSuggestionsData) ? (defaultSuggestionsData as string[]) : [];
-}
-
-export function getServerRouletteData(rouletteId: string): { roulette: RouletteData; items: RouletteItem[] } | null {
-  const roulettes = getAllServerRoulettes();
-  const roulette = roulettes.find((r) => r.id === rouletteId);
-  if (!roulette) return null;
-
-  const allItems = getAllServerItems();
-  const items = allItems.filter((it) => it.roulette_id === rouletteId);
-
-  return { roulette, items };
-}
-
-export function upsertServerRoulette(roulette: RouletteData, items: RouletteItem[]) {
-  const roulettes = getAllServerRoulettes();
-  const existingIdx = roulettes.findIndex((r) => r.id === roulette.id);
-  if (existingIdx >= 0) {
-    roulettes[existingIdx] = roulette;
-  } else {
-    roulettes.unshift(roulette);
-  }
-  saveAllServerRoulettes(roulettes);
-
-  const currentItems = getAllServerItems().filter((it) => it.roulette_id !== roulette.id);
-  const newItems = items.map((it, idx) => ({
-    ...it,
-    id: it.id || crypto.randomUUID(),
-    roulette_id: roulette.id,
-    sort_order: idx,
-  }));
-  saveAllServerItems([...currentItems, ...newItems]);
-
-  return { roulette, items: newItems };
-}
-
-export function deleteServerRoulette(rouletteId: string): boolean {
-  ensureDataDir();
-  const trimmedId = rouletteId.trim();
-
-  let roulettes = getAllServerRoulettes();
-  roulettes = roulettes.filter((r) => r.id !== trimmedId);
-  saveAllServerRoulettes(roulettes);
-
-  let items = getAllServerItems();
-  items = items.filter((it) => it.roulette_id !== trimmedId);
-  saveAllServerItems(items);
-
-  return true;
-}
 
 export interface AdminRouletteStats {
   roulette: RouletteData;
@@ -141,55 +12,341 @@ export interface AdminRouletteStats {
   totalProbability: number;
 }
 
-export function getAllServerRoulettesWithStats(): AdminRouletteStats[] {
-  const roulettes = getAllServerRoulettes();
-  const allItems = getAllServerItems();
-
-  return roulettes.map((roulette) => {
-    const items = allItems.filter((it) => it.roulette_id === roulette.id);
-    const audioCount = items.filter((it) => Boolean(it.audio_url)).length;
-    const totalProbability = items.reduce((acc, it) => acc + (Number(it.probability) || 0), 0);
-    return {
-      roulette,
-      items,
-      itemCount: items.length,
-      audioCount,
-      totalProbability,
-    };
-  });
-}
-
-export function getMasterAdminPassword(): string {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(ADMIN_CONFIG_FILE)) {
-      const raw = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf-8');
-      if (raw.trim()) {
-        const data = JSON.parse(raw);
-        if (data && typeof data.password === 'string' && data.password.trim()) {
-          return data.password.trim();
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error reading admin config file:', err);
+/**
+ * Supabase DB에서 모든 룰렛 목록을 최신순으로 가져옵니다.
+ */
+export async function getAllServerRoulettes(): Promise<RouletteData[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    console.warn('Supabase client is not configured.');
+    return [];
   }
-  return process.env.ADMIN_PASSWORD || 'admin1234';
+
+  try {
+    const { data, error } = await supabase
+      .from('roulettes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching roulettes from Supabase:', error);
+      return [];
+    }
+
+    return (data || []) as RouletteData[];
+  } catch (err) {
+    console.error('Exception fetching roulettes from Supabase:', err);
+    return [];
+  }
 }
 
-export function saveMasterAdminPassword(newPassword: string): boolean {
-  ensureDataDir();
+/**
+ * Supabase DB에서 모든 룰렛 아이템 목록을 가져옵니다.
+ */
+export async function getAllServerItems(): Promise<RouletteItem[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('roulette_items')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching roulette items from Supabase:', error);
+      return [];
+    }
+
+    return (data || []) as RouletteItem[];
+  } catch (err) {
+    console.error('Exception fetching roulette items from Supabase:', err);
+    return [];
+  }
+}
+
+/**
+ * 특정 룰렛 ID의 데이터 및 소속 아이템 목록을 조회합니다.
+ */
+export async function getServerRouletteData(
+  rouletteId: string
+): Promise<{ roulette: RouletteData; items: RouletteItem[] } | null> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  try {
+    const { data: roulette, error: rError } = await supabase
+      .from('roulettes')
+      .select('*')
+      .eq('id', rouletteId)
+      .maybeSingle();
+
+    if (rError || !roulette) {
+      if (rError) console.error('Error fetching single roulette:', rError);
+      return null;
+    }
+
+    const { data: items, error: iError } = await supabase
+      .from('roulette_items')
+      .select('*')
+      .eq('roulette_id', rouletteId)
+      .order('sort_order', { ascending: true });
+
+    if (iError) {
+      console.error('Error fetching items for roulette:', iError);
+    }
+
+    return {
+      roulette: roulette as RouletteData,
+      items: (items || []) as RouletteItem[],
+    };
+  } catch (err) {
+    console.error('Exception fetching roulette data:', err);
+    return null;
+  }
+}
+
+/**
+ * 룰렛 정보 및 아이템 목록을 Supabase DB에 저장(Upsert)합니다.
+ */
+export async function upsertServerRoulette(
+  roulette: RouletteData,
+  items: RouletteItem[]
+): Promise<{ roulette: RouletteData; items: RouletteItem[] } | null> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    throw new Error('Supabase configuration missing (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)');
+  }
+
+  const now = new Date().toISOString();
+  const roulettePayload = {
+    id: roulette.id,
+    title: roulette.title,
+    reset_mode: roulette.reset_mode || 'daily',
+    daily_spins: roulette.daily_spins ?? 3,
+    total_spins: roulette.total_spins ?? 10,
+    bonus_spins: roulette.bonus_spins ?? 0,
+    used_spins: roulette.used_spins ?? 0,
+    last_reset_date: roulette.last_reset_date || now.slice(0, 10),
+    valid_from: roulette.valid_from || null,
+    valid_until: roulette.valid_until || null,
+    edit_key: roulette.edit_key,
+    created_at: roulette.created_at || now,
+    updated_at: now,
+  };
+
+  // 1) 룰렛 메타데이터 Upsert
+  const { data: savedRoulette, error: rError } = await supabase
+    .from('roulettes')
+    .upsert(roulettePayload)
+    .select()
+    .single();
+
+  if (rError || !savedRoulette) {
+    console.error('Error upserting roulette:', rError);
+    throw new Error(rError?.message || 'Failed to save roulette');
+  }
+
+  // 2) 기존 소속 아이템 삭제 후 새 아이템 일괄 등록
+  const { error: delError } = await supabase
+    .from('roulette_items')
+    .delete()
+    .eq('roulette_id', roulette.id);
+
+  if (delError) {
+    console.error('Error clearing old roulette items:', delError);
+  }
+
+  const formattedItems = (items || []).map((it, idx) => ({
+    id: it.id || crypto.randomUUID(),
+    roulette_id: roulette.id,
+    title: it.title,
+    probability: Number(it.probability) || 0,
+    audio_url: it.audio_url || null,
+    audio_name: it.audio_name || null,
+    audio_duration: it.audio_duration ? Number(it.audio_duration) : null,
+    color: it.color || '#FFB5C5',
+    sort_order: idx,
+    created_at: it.created_at || now,
+  }));
+
+  let savedItems: RouletteItem[] = [];
+  if (formattedItems.length > 0) {
+    const { data: insertedItems, error: iError } = await supabase
+      .from('roulette_items')
+      .insert(formattedItems)
+      .select()
+      .order('sort_order', { ascending: true });
+
+    if (iError) {
+      console.error('Error inserting roulette items:', iError);
+      throw new Error(iError.message || 'Failed to save roulette items');
+    }
+    savedItems = (insertedItems || []) as RouletteItem[];
+  }
+
+  return {
+    roulette: savedRoulette as RouletteData,
+    items: savedItems,
+  };
+}
+
+/**
+ * 룰렛 스핀 수치 또는 리셋 일자를 업데이트합니다.
+ */
+export async function updateRouletteSpins(
+  rouletteId: string,
+  updates: Partial<Pick<RouletteData, 'used_spins' | 'bonus_spins' | 'last_reset_date' | 'updated_at'>>
+): Promise<RouletteData | null> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
   try {
     const payload = {
-      password: newPassword,
+      ...updates,
       updated_at: new Date().toISOString(),
     };
-    fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+
+    const { data, error } = await supabase
+      .from('roulettes')
+      .update(payload)
+      .eq('id', rouletteId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error('Error updating roulette spins:', error);
+      return null;
+    }
+
+    return data as RouletteData;
   } catch (err) {
-    console.error('Error writing admin config file:', err);
+    console.error('Exception updating roulette spins:', err);
+    return null;
+  }
+}
+
+/**
+ * 룰렛을 Supabase DB에서 삭제합니다 (소속 아이템 CASCADE 삭제).
+ */
+export async function deleteServerRoulette(rouletteId: string): Promise<boolean> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('roulettes')
+      .delete()
+      .eq('id', rouletteId.trim());
+
+    if (error) {
+      console.error('Error deleting roulette from Supabase:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Exception deleting roulette from Supabase:', err);
+    return false;
+  }
+}
+
+/**
+ * 관리자 대시보드 통계 및 룰렛 목록을 가져옵니다.
+ */
+export async function getAllServerRoulettesWithStats(): Promise<AdminRouletteStats[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  try {
+    const { data: roulettes, error: rError } = await supabase
+      .from('roulettes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (rError || !roulettes) {
+      console.error('Error fetching roulettes for stats:', rError);
+      return [];
+    }
+
+    const { data: allItems, error: iError } = await supabase
+      .from('roulette_items')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (iError) {
+      console.error('Error fetching roulette items for stats:', iError);
+    }
+
+    const itemsList = (allItems || []) as RouletteItem[];
+
+    return (roulettes as RouletteData[]).map((roulette) => {
+      const items = itemsList.filter((it) => it.roulette_id === roulette.id);
+      const audioCount = items.filter((it) => Boolean(it.audio_url)).length;
+      const totalProbability = items.reduce((acc, it) => acc + (Number(it.probability) || 0), 0);
+      return {
+        roulette,
+        items,
+        itemCount: items.length,
+        audioCount,
+        totalProbability,
+      };
+    });
+  } catch (err) {
+    console.error('Exception calculating admin roulette stats:', err);
+    return [];
+  }
+}
+
+/**
+ * 마스터 관리자 비밀번호를 조회합니다 (DB admin_settings 우선, 환경변수 fallback).
+ */
+export async function getMasterAdminPassword(): Promise<string> {
+  const defaultPass = process.env.ADMIN_PASSWORD || 'admin1234';
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return defaultPass;
+
+  try {
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'master_password')
+      .maybeSingle();
+
+    if (!error && data?.value && typeof data.value === 'string' && data.value.trim()) {
+      return data.value.trim();
+    }
+  } catch (err) {
+    console.error('Error reading admin password from Supabase:', err);
   }
 
-  // Also sync with .env file if in a writable local dev environment
+  return defaultPass;
+}
+
+/**
+ * 마스터 관리자 비밀번호를 Supabase admin_settings 테이블에 저장합니다.
+ */
+export async function saveMasterAdminPassword(newPassword: string): Promise<boolean> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          key: 'master_password',
+          value: newPassword,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) {
+        console.error('Error saving admin password to Supabase:', error);
+      }
+    } catch (err) {
+      console.error('Exception saving admin password to Supabase:', err);
+    }
+  }
+
+  // 로컬 개발 환경인 경우 .env 파일에도 동기화 시도
   try {
     const envPath = path.join(process.cwd(), '.env');
     if (fs.existsSync(envPath)) {
@@ -201,9 +358,16 @@ export function saveMasterAdminPassword(newPassword: string): boolean {
       }
       fs.writeFileSync(envPath, content, 'utf-8');
     }
-  } catch (err) {
-    console.error('Error updating .env file:', err);
+  } catch {
+    // 환경변수 파일 쓰기 실패 무시
   }
 
   return true;
+}
+
+/**
+ * 추천 문구 프리셋을 반환합니다 (suggestions.json 사용).
+ */
+export function getPresetRecommendations(): string[] {
+  return Array.isArray(defaultSuggestionsData) ? (defaultSuggestionsData as string[]) : [];
 }
