@@ -169,11 +169,6 @@ export default function ResultModal({
                 <span>크게 보기</span>
               </div>
             </div>
-            {winnerItem.image_name && (
-              <span className="text-[11px] text-gray-500 font-medium truncate max-w-full">
-                🖼️ {winnerItem.image_name}
-              </span>
-            )}
           </div>
         )}
 
