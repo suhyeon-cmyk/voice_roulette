@@ -87,13 +87,25 @@ export default function ItemListModal({
                       <span>{item.probability}%</span>
                     </span>
 
-                    {item.audio_url ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-600 border border-pink-200/90 shadow-2xs">
-                        <span>🔒 당첨 시 음성 공개 💕</span>
+                    {/* 등록된 메시지 배지 표시 */}
+                    {item.text_message?.trim() && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-50 text-pink-600 border border-pink-200/90 shadow-2xs">
+                        <span>💌 메시지</span>
                       </span>
-                    ) : (
-                      <span className="text-[11px] text-gray-400 font-medium">
-                        (음성 없음)
+                    )}
+                    {item.audio_url && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200/90 shadow-2xs">
+                        <span>🎙️ 음성</span>
+                      </span>
+                    )}
+                    {item.image_url && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-2xs">
+                        <span>🖼️ 사진</span>
+                      </span>
+                    )}
+                    {!item.text_message?.trim() && !item.audio_url && !item.image_url && (
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        (메시지 없음)
                       </span>
                     )}
                   </div>

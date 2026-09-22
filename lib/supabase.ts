@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'voice-messages';
+export const IMAGE_STORAGE_BUCKET = process.env.SUPABASE_IMAGE_STORAGE_BUCKET || 'image-messages';
 
 let supabaseAdminInstance: SupabaseClient | null = null;
 let supabaseClientInstance: SupabaseClient | null = null;

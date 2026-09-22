@@ -370,3 +370,48 @@ export async function uploadAudioFile(
     reader.readAsDataURL(file);
   });
 }
+
+// ----------------------------------------------------------------------
+// 8. 이미지 메시지 파일 Server API 업로드 (image-messages 버킷)
+// ----------------------------------------------------------------------
+export async function uploadImageFile(
+  file: Blob | File,
+  rouletteId: string,
+  itemId: string
+): Promise<{ url: string }> {
+  // 1) Server API 업로드
+  if (typeof window !== 'undefined') {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'image');
+      formData.append('rouletteId', rouletteId);
+      formData.append('itemId', itemId);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          return { url: data.url };
+        }
+      }
+    } catch (err) {
+      console.warn('Server image upload failed, falling back to base64 data URL:', err);
+    }
+  }
+
+  // 2) Base64 Data URL Fallback
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve({ url: reader.result as string });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+

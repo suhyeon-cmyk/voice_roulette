@@ -9,6 +9,8 @@ export interface AdminRouletteStats {
   items: RouletteItem[];
   itemCount: number;
   audioCount: number;
+  imageCount?: number;
+  textCount?: number;
   totalProbability: number;
 }
 
@@ -162,6 +164,9 @@ export async function upsertServerRoulette(
     roulette_id: roulette.id,
     title: it.title,
     probability: Number(it.probability) || 0,
+    text_message: it.text_message ? it.text_message.trim() : null,
+    image_url: it.image_url || null,
+    image_name: it.image_name || null,
     audio_url: it.audio_url || null,
     audio_name: it.audio_name || null,
     audio_duration: it.audio_duration ? Number(it.audio_duration) : null,
@@ -283,12 +288,16 @@ export async function getAllServerRoulettesWithStats(): Promise<AdminRouletteSta
     return (roulettes as RouletteData[]).map((roulette) => {
       const items = itemsList.filter((it) => it.roulette_id === roulette.id);
       const audioCount = items.filter((it) => Boolean(it.audio_url)).length;
+      const imageCount = items.filter((it) => Boolean(it.image_url)).length;
+      const textCount = items.filter((it) => Boolean(it.text_message?.trim())).length;
       const totalProbability = items.reduce((acc, it) => acc + (Number(it.probability) || 0), 0);
       return {
         roulette,
         items,
         itemCount: items.length,
         audioCount,
+        imageCount,
+        textCount,
         totalProbability,
       };
     });

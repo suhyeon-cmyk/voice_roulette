@@ -3,7 +3,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { RouletteItem } from '@/types/roulette';
-import { Sparkles, Play, Volume2, X, RotateCcw, AlertCircle, Settings } from 'lucide-react';
+import {
+  Sparkles,
+  Play,
+  Volume2,
+  X,
+  RotateCcw,
+  AlertCircle,
+  Settings,
+  MessageSquare,
+  ZoomIn,
+  Heart,
+} from 'lucide-react';
 import Link from 'next/link';
 
 interface ResultModalProps {
@@ -28,6 +39,7 @@ export default function ResultModal({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [hasListened, setHasListened] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const targetRouletteId = rouletteId;
@@ -38,6 +50,7 @@ export default function ResultModal({
         audioRef.current.pause();
       }
       setIsPlayingAudio(false);
+      setIsImageZoomed(false);
       return;
     }
 
@@ -45,12 +58,13 @@ export default function ResultModal({
     setHasListened(false);
     setIsPlayingAudio(false);
     setAudioError(false);
+    setIsImageZoomed(false);
 
     // 축하 Confetti 폭죽 효과
     try {
       confetti({
-        particleCount: 60,
-        spread: 80,
+        particleCount: 65,
+        spread: 85,
         origin: { y: 0.6 },
         colors: ['#FF8FA3', '#FFCCD5', '#B5EAD7', '#FFDAC1', '#FFF2B2', '#C7CEEA'],
       });
@@ -98,11 +112,11 @@ export default function ResultModal({
   const canClose = !winnerItem.audio_url || hasListened || audioError;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm animate-fade-in">
       <div
-        className="relative w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center flex flex-col items-center gap-4 animate-scale-up"
+        className="relative w-full max-w-sm sm:max-w-md max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-6 shadow-2xl text-center flex flex-col items-center gap-3.5 animate-scale-up"
         style={{
-          background: 'linear-gradient(145deg, #ffffff 0%, #fff0f5 100%)',
+          background: 'linear-gradient(145deg, #ffffff 0%, #fff3f6 100%)',
           border: '3px solid #ffccd5',
         }}
       >
@@ -110,7 +124,7 @@ export default function ResultModal({
         {canClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full text-pink-400 hover:text-pink-600 hover:bg-pink-100 transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-1.5 rounded-full text-pink-400 hover:text-pink-600 hover:bg-pink-100 transition-colors cursor-pointer z-10"
             aria-label="닫기"
           >
             <X className="w-5 h-5" />
@@ -123,21 +137,60 @@ export default function ResultModal({
           <span>두근두근 룰렛 결과 발표! 🎲</span>
         </div>
 
-        {/* 메인 당첨 아이템 카드 */}
+        {/* 1. 메인 당첨 아이템 카드 */}
         <div
-          className="w-full py-6 px-4 rounded-2xl border-2 border-white shadow-md flex flex-col items-center gap-2"
+          className="w-full py-5 px-4 rounded-2xl border-2 border-white shadow-md flex flex-col items-center gap-1.5"
           style={{ backgroundColor: winnerItem.color || '#FFE4EC' }}
         >
-          <span className="text-3xl">🎉</span>
-          <h3 className="text-xl font-extrabold text-gray-800 tracking-tight break-keep">
+          <span className="text-3xl animate-bounce">🎉</span>
+          <h3 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-keep">
             {winnerItem.title}
           </h3>
-          <span className="text-xs text-gray-600/80 font-medium">
+          <span className="text-xs text-gray-600/80 font-semibold">
             확률 {winnerItem.probability}% 🎯
           </span>
         </div>
 
-        {/* 숨김 오디오 엘리먼트 */}
+        {/* 2. 이미지 메시지 (등록된 경우에만 표시) */}
+        {winnerItem.image_url && (
+          <div className="w-full flex flex-col items-center gap-1.5 animate-fade-in">
+            <div
+              onClick={() => setIsImageZoomed(true)}
+              className="relative w-full max-h-52 sm:max-h-60 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-white flex items-center justify-center cursor-pointer group"
+              title="클릭하여 크게 보기"
+            >
+              <img
+                src={winnerItem.image_url}
+                alt={winnerItem.image_name || '당첨 이미지'}
+                className="w-full h-auto max-h-52 sm:max-h-60 object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
+              />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1 text-xs font-bold">
+                <ZoomIn className="w-4 h-4" />
+                <span>크게 보기</span>
+              </div>
+            </div>
+            {winnerItem.image_name && (
+              <span className="text-[11px] text-gray-500 font-medium truncate max-w-full">
+                🖼️ {winnerItem.image_name}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 3. 텍스트 메시지 (등록된 경우에만 표시) */}
+        {winnerItem.text_message && winnerItem.text_message.trim() && (
+          <div className="w-full bg-white/95 border-2 border-pink-200/90 rounded-2xl p-4 shadow-sm text-left flex flex-col gap-1.5 animate-fade-in">
+            <div className="flex items-center gap-1.5 text-xs font-extrabold text-pink-600">
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>도착한 특별한 메시지 💌</span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-wrap break-words">
+              {winnerItem.text_message}
+            </p>
+          </div>
+        )}
+
+        {/* 숨김 오디오 엘리먼트 (음성 등록된 경우에만 동작) */}
         {winnerItem.audio_url && (
           <audio
             ref={audioRef}
@@ -153,9 +206,9 @@ export default function ResultModal({
           />
         )}
 
-        {/* 통합 액션 버튼 */}
-        <div className="w-full mt-2">
-          {/* 오류 발생 시 */}
+        {/* 4. 액션 버튼 영역 */}
+        <div className="w-full mt-1 flex flex-col gap-2">
+          {/* 음성 오류 발생 시 */}
           {audioError ? (
             <div className="w-full flex flex-col gap-2.5">
               <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-rose-500 bg-rose-50 py-2.5 px-3 rounded-xl border border-rose-200">
@@ -168,29 +221,35 @@ export default function ResultModal({
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>{isTestMode ? '다시 테스트하기 (스핀 소모 없음)' : remainingSpins >= 900 ? '다시 돌리기 (무제한 ∞)' : `다시 돌리기 (남은 스핀 ${remainingSpins}회)`}</span>
+                <span>
+                  {isTestMode
+                    ? '다시 테스트하기 (스핀 소모 없음)'
+                    : remainingSpins >= 900
+                    ? '다시 돌리기 (무제한 ∞)'
+                    : `다시 돌리기 (남은 스핀 ${remainingSpins}회)`}
+                </span>
               </button>
             </div>
           ) : winnerItem.audio_url && !hasListened ? (
             isPlayingAudio ? (
-              /* 2. 음성 메시지 재생 중... (중간에 멈출 수 없음) */
+              /* 음성 메시지 재생 중... (중간에 멈출 수 없음) */
               <div className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-400 to-pink-500 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 select-none animate-pulse">
                 <Volume2 className="w-4 h-4 animate-bounce" />
                 <span>음성 메시지 재생 중... 🎧</span>
               </div>
             ) : (
-              /* 1. 음성 메시지 듣기 (음성 메시지가 있는 경우 무조건 먼저 들어야 함) */
+              /* 음성 메시지 듣기 (음성 메시지가 등록된 경우 먼저 들어야 함) */
               <button
                 type="button"
                 onClick={playAudio}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-400 to-pink-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer animate-pulse-glow"
               >
                 <Play className="w-4 h-4 fill-current" />
-                <span>음성 메시지 듣기</span>
+                <span>음성 메시지 듣기 🎙️</span>
               </button>
             )
           ) : (
-            /* 3. 음성 재생 완료 후 또는 4. 음성 메시지가 없는 경우: 다시 돌리기 */
+            /* 음성 재생 완료 후 또는 음성 메시지가 등록되지 않은 경우: 즉시 다시 돌리기 활성화 */
             <div className="w-full flex flex-col gap-2">
               <button
                 type="button"
@@ -198,10 +257,16 @@ export default function ResultModal({
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>{isTestMode ? '다시 테스트하기 (스핀 소모 없음)' : remainingSpins >= 900 ? '다시 돌리기 (무제한 ∞)' : `다시 돌리기 (남은 스핀 ${remainingSpins}회)`}</span>
+                <span>
+                  {isTestMode
+                    ? '다시 테스트하기 (스핀 소모 없음)'
+                    : remainingSpins >= 900
+                    ? '다시 돌리기 (무제한 ∞)'
+                    : `다시 돌리기 (남은 스핀 ${remainingSpins}회)`}
+                </span>
               </button>
 
-              {/* 테스트 모드일 때 설정으로 돌아가기 버튼 제공 (비밀번호 자동 인증 키 전달) */}
+              {/* 테스트 모드일 때 설정으로 돌아가기 버튼 */}
               {isTestMode && targetRouletteId && (
                 <Link
                   href={`/settings/${targetRouletteId}${editKey ? `?key=${editKey}` : ''}`}
@@ -215,6 +280,39 @@ export default function ResultModal({
           )}
         </div>
       </div>
+
+      {/* 이미지 확대 보기 전용 모달 */}
+      {isImageZoomed && winnerItem.image_url && (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in"
+          onClick={() => setIsImageZoomed(false)}
+        >
+          <div
+            className="relative max-w-xl max-h-[90vh] bg-white rounded-3xl p-3 sm:p-4 shadow-2xl flex flex-col items-center gap-2.5 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setIsImageZoomed(false)}
+              className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white text-gray-700 shadow-md transition-colors cursor-pointer z-10"
+              aria-label="닫기"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-full max-h-[80vh] overflow-hidden rounded-2xl flex items-center justify-center bg-gray-50">
+              <img
+                src={winnerItem.image_url}
+                alt={winnerItem.image_name || '확대 이미지'}
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl"
+              />
+            </div>
+            {winnerItem.image_name && (
+              <span className="text-xs font-semibold text-gray-700 truncate max-w-sm">
+                {winnerItem.image_name}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

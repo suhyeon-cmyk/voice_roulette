@@ -21,6 +21,9 @@ export interface RouletteItem {
   roulette_id: string;
   title: string;
   probability: number;      // 백분율 (0 ~ 100)
+  text_message?: string;    // 당첨 시 보여줄 텍스트 메시지
+  image_url?: string;       // 이미지 파일 URL 또는 Blob Data URL
+  image_name?: string;      // 업로드한 이미지 파일명
   audio_url?: string;       // 오디오 파일 URL 또는 Blob Data URL
   audio_name?: string;      // 파일 이름 또는 녹음 시간
   audio_duration?: number;  // 음성 길이 (초)

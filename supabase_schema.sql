@@ -19,12 +19,15 @@ CREATE TABLE IF NOT EXISTS public.roulettes (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Roulette Items (룰렛 항목 및 음성 정보) 테이블
+-- 2. Roulette Items (룰렛 항목 및 음성/이미지/텍스트 정보) 테이블
 CREATE TABLE IF NOT EXISTS public.roulette_items (
   id TEXT PRIMARY KEY,
   roulette_id TEXT NOT NULL REFERENCES public.roulettes(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   probability NUMERIC NOT NULL DEFAULT 0,
+  text_message TEXT,
+  image_url TEXT,
+  image_name TEXT,
   audio_url TEXT,
   audio_name TEXT,
   audio_duration NUMERIC,
@@ -32,6 +35,11 @@ CREATE TABLE IF NOT EXISTS public.roulette_items (
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 기존 테이블이 이미 생성되어 있을 경우를 위한 컬럼 추가 (안전 실행)
+ALTER TABLE public.roulette_items ADD COLUMN IF NOT EXISTS text_message TEXT;
+ALTER TABLE public.roulette_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE public.roulette_items ADD COLUMN IF NOT EXISTS image_name TEXT;
 
 -- 인덱스 생성 (룰렛 ID 기반 항목 고속 조회)
 CREATE INDEX IF NOT EXISTS idx_roulette_items_roulette_id ON public.roulette_items(roulette_id);
@@ -44,14 +52,17 @@ CREATE TABLE IF NOT EXISTS public.admin_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. Supabase Storage Bucket ('voice-messages') 생성 및 Public 정책 설정
+-- 4. Supabase Storage Buckets ('voice-messages', 'image-messages') 생성 및 Public 정책 설정
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('voice-messages', 'voice-messages', true)
+VALUES 
+  ('voice-messages', 'voice-messages', true),
+  ('image-messages', 'image-messages', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Storage 버킷 RLS 정책 설정 (공개 읽기 및 누구나 업로드/갱신 가능)
 DO $$
 BEGIN
+  -- 1) Voice Messages 버킷 정책
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Voice Messages Public Select'
   ) THEN
@@ -82,5 +93,38 @@ BEGIN
     CREATE POLICY "Voice Messages Public Delete"
     ON storage.objects FOR DELETE
     USING (bucket_id = 'voice-messages');
+  END IF;
+
+  -- 2) Image Messages 버킷 정책
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Image Messages Public Select'
+  ) THEN
+    CREATE POLICY "Image Messages Public Select"
+    ON storage.objects FOR SELECT
+    USING (bucket_id = 'image-messages');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Image Messages Public Insert'
+  ) THEN
+    CREATE POLICY "Image Messages Public Insert"
+    ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'image-messages');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Image Messages Public Update'
+  ) THEN
+    CREATE POLICY "Image Messages Public Update"
+    ON storage.objects FOR UPDATE
+    USING (bucket_id = 'image-messages');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Image Messages Public Delete'
+  ) THEN
+    CREATE POLICY "Image Messages Public Delete"
+    ON storage.objects FOR DELETE
+    USING (bucket_id = 'image-messages');
   END IF;
 END $$;

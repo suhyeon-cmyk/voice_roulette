@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import AudioRecorder from './AudioRecorder';
+import ImageUploader from './ImageUploader';
 import ShareModal from './ShareModal';
 import ColorPickerModal from './ColorPickerModal';
 import defaultItemSuggestions from '@/data/suggestions.json';
@@ -14,6 +15,7 @@ import {
   PASTEL_PALETTE,
   saveRouletteData,
   uploadAudioFile,
+  uploadImageFile,
 } from '@/lib/storage';
 import {
   Heart,
@@ -34,6 +36,9 @@ import {
   Minus,
   Lightbulb,
   Palette,
+  ImageIcon,
+  MessageSquare,
+  Volume2,
 } from 'lucide-react';
 
 interface SettingsFormProps {
@@ -84,6 +89,8 @@ export default function SettingsForm({
 
   // 새 녹음/업로드 파일 임시 보관
   const [pendingAudios, setPendingAudios] = useState<Record<string, { blob: Blob | File; localUrl: string }>>({});
+  // 새 이미지 파일 임시 보관
+  const [pendingImages, setPendingImages] = useState<Record<string, { file: File; localUrl: string }>>({});
 
   // UI 상태
   const [saving, setSaving] = useState(false);
@@ -302,6 +309,49 @@ export default function SettingsForm({
     }
   };
 
+  // 9-1. 텍스트 메시지 변경 핸들러
+  const handleTextMessageChange = (itemId: string, text: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === itemId ? { ...it, text_message: text } : it))
+    );
+  };
+
+  // 9-2. 이미지 변경 핸들러
+  const handleImageChange = (
+    itemId: string,
+    imageFile: File | null,
+    imageUrl: string | null,
+    imageName?: string
+  ) => {
+    if (imageFile && imageUrl) {
+      setPendingImages((prev) => ({
+        ...prev,
+        [itemId]: { file: imageFile, localUrl: imageUrl },
+      }));
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === itemId
+            ? { ...it, image_url: imageUrl, image_name: imageName || imageFile.name }
+            : it
+        )
+      );
+    } else {
+      // 이미지 삭제
+      setPendingImages((prev) => {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === itemId
+            ? { ...it, image_url: undefined, image_name: undefined }
+            : it
+        )
+      );
+    }
+  };
+
   // 10. 최종 룰렛 저장
   const handleSave = async () => {
     if (!title.trim()) {
@@ -316,18 +366,26 @@ export default function SettingsForm({
     setSaving(true);
 
     try {
-      // 1) 보류 중인 오디오 파일들 일괄 업로드
+      // 1) 보류 중인 오디오 및 이미지 파일들 일괄 업로드
       const finalItems = await Promise.all(
         items.map(async (item) => {
-          const pending = pendingAudios[item.id];
-          if (pending) {
-            const { url } = await uploadAudioFile(pending.blob, rouletteId, item.id);
-            return {
-              ...item,
-              audio_url: url,
-            };
+          let updatedItem = { ...item };
+
+          // 보류 중인 오디오 파일 업로드 (voice-messages 버킷)
+          const pendingAudio = pendingAudios[item.id];
+          if (pendingAudio) {
+            const { url } = await uploadAudioFile(pendingAudio.blob, rouletteId, item.id);
+            updatedItem.audio_url = url;
           }
-          return item;
+
+          // 보류 중인 이미지 파일 업로드 (image-messages 버킷)
+          const pendingImage = pendingImages[item.id];
+          if (pendingImage) {
+            const { url } = await uploadImageFile(pendingImage.file, rouletteId, item.id);
+            updatedItem.image_url = url;
+          }
+
+          return updatedItem;
         })
       );
 
@@ -913,14 +971,97 @@ export default function SettingsForm({
                 </div>
               </div>
 
-              {/* 음성 녹음 컴포넌트 연동 */}
-              <AudioRecorder
-                initialAudioUrl={item.audio_url}
-                initialAudioName={item.audio_name}
-                onAudioChange={(blob, url, duration) =>
-                  handleAudioChange(item.id, blob, url, duration)
-                }
-              />
+              {/* 메시지 및 미디어 등록 영역 (텍스트 / 음성 / 이미지) */}
+              <div className="flex flex-col gap-2.5 pt-1.5 border-t border-pink-100/90">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold text-pink-600 flex items-center gap-1">
+                    <Gift className="w-3.5 h-3.5" />
+                    <span>당첨 선물 & 메시지 (선택 등록)</span>
+                  </span>
+                  {/* 등록 상태 뱃지 요약 */}
+                  <div className="flex items-center gap-1">
+                    {item.text_message?.trim() && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-pink-100 text-pink-600 font-bold flex items-center gap-0.5">
+                        <MessageSquare className="w-2.5 h-2.5" />
+                        <span>텍스트</span>
+                      </span>
+                    )}
+                    {item.audio_url && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-600 font-bold flex items-center gap-0.5">
+                        <Volume2 className="w-2.5 h-2.5" />
+                        <span>음성</span>
+                      </span>
+                    )}
+                    {item.image_url && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 font-bold flex items-center gap-0.5">
+                        <ImageIcon className="w-2.5 h-2.5" />
+                        <span>이미지</span>
+                      </span>
+                    )}
+                    {!item.text_message?.trim() && !item.audio_url && !item.image_url && (
+                      <span className="text-[10px] text-gray-400 font-normal">
+                        (원하는 것만 등록)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 1) 텍스트 메시지 입력 */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                      <MessageSquare className="w-3.5 h-3.5 text-pink-500" />
+                      <span>축하/비밀 텍스트 메시지</span>
+                    </label>
+                    {item.text_message?.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => handleTextMessageChange(item.id, '')}
+                        className="text-[10px] text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={item.text_message || ''}
+                    onChange={(e) => handleTextMessageChange(item.id, e.target.value)}
+                    placeholder="당첨 시 상대방에게 띄워줄 다정한 축하/비밀 메시지 (미입력 시 나타나지 않음)"
+                    className="w-full px-3 py-2 bg-pink-50/30 hover:bg-pink-50/50 focus:bg-white border border-pink-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-pink-300 resize-none transition-colors"
+                  />
+                </div>
+
+                {/* 2) 음성 메시지 등록 */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                    <Volume2 className="w-3.5 h-3.5 text-pink-500" />
+                    <span>음성 메시지 (녹음 또는 오디오 파일)</span>
+                  </label>
+                  <AudioRecorder
+                    initialAudioUrl={item.audio_url}
+                    initialAudioName={item.audio_name}
+                    onAudioChange={(blob, url, duration) =>
+                      handleAudioChange(item.id, blob, url, duration)
+                    }
+                  />
+                </div>
+
+                {/* 3) 이미지 메시지 등록 */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-pink-500" />
+                    <span>이미지 메시지 (사진 또는 쿠폰/티켓 이미지)</span>
+                  </label>
+                  <ImageUploader
+                    initialImageUrl={item.image_url}
+                    initialImageName={item.image_name}
+                    onImageChange={(file, url, name) =>
+                      handleImageChange(item.id, file, url, name)
+                    }
+                  />
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -958,7 +1099,7 @@ export default function SettingsForm({
           {saving ? (
             <>
               <Sparkles className="w-4 h-4 animate-spin flex-shrink-0" />
-              <span>음성 업로드 및 저장 중...</span>
+              <span>미디어 업로드 및 저장 중...</span>
             </>
           ) : !isProbabilityValid ? (
             <>
