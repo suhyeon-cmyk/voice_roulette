@@ -184,10 +184,41 @@ export async function upsertServerRoulette(
       .order('sort_order', { ascending: true });
 
     if (iError) {
-      console.error('Error inserting roulette items:', iError);
-      throw new Error(iError.message || 'Failed to save roulette items');
+      console.warn('First insert attempt failed, trying fallback insert without new columns:', iError.message);
+      // DB에 새 컬럼이 아직 없는 경우를 위한 안전 Fallback
+      const baseItems = formattedItems.map((it) => ({
+        id: it.id,
+        roulette_id: it.roulette_id,
+        title: it.title,
+        probability: it.probability,
+        audio_url: it.audio_url,
+        audio_name: it.audio_name,
+        audio_duration: it.audio_duration,
+        color: it.color,
+        sort_order: it.sort_order,
+        created_at: it.created_at,
+      }));
+
+      const { data: fallbackItems, error: fbError } = await supabase
+        .from('roulette_items')
+        .insert(baseItems)
+        .select()
+        .order('sort_order', { ascending: true });
+
+      if (fbError) {
+        console.error('Fallback inserting roulette items failed:', fbError);
+        throw new Error(fbError.message || 'Failed to save roulette items');
+      }
+
+      savedItems = (fallbackItems || []).map((fb, idx) => ({
+        ...fb,
+        text_message: formattedItems[idx]?.text_message || undefined,
+        image_url: formattedItems[idx]?.image_url || undefined,
+        image_name: formattedItems[idx]?.image_name || undefined,
+      })) as RouletteItem[];
+    } else {
+      savedItems = (insertedItems || []) as RouletteItem[];
     }
-    savedItems = (insertedItems || []) as RouletteItem[];
   }
 
   return {

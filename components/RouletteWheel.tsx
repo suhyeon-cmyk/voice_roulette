@@ -43,7 +43,28 @@ export default function RouletteWheel({
 
     ctx.clearRect(0, 0, size, size);
 
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      // 아이템이 없을 때 빈 룰렛 안내 렌더링
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = '#FFF5F7';
+      ctx.fill();
+      ctx.strokeStyle = '#FFCCD5';
+      ctx.lineWidth = 4 * scale;
+      ctx.stroke();
+
+      ctx.fillStyle = '#FF4D6D';
+      ctx.font = `bold ${Math.round(16 * scale)}px -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('등록된 항목이 없어요 😢', center, center - 12 * scale);
+      ctx.font = `${Math.round(12 * scale)}px -apple-system, sans-serif`;
+      ctx.fillStyle = '#888888';
+      ctx.fillText('설정 화면에서 항목을 추가해주세요 💕', center, center + 14 * scale);
+      ctx.restore();
+      return;
+    }
 
     // 외곽 귀여운 파스텔 그림자 링
     ctx.save();
@@ -65,7 +86,8 @@ export default function RouletteWheel({
     let currentAngle = (rotationAngle * Math.PI) / 180;
 
     items.forEach((item, index) => {
-      const sliceAngle = ((item.probability || 0) / totalProbability) * (2 * Math.PI);
+      const prob = Math.max(0, Number(item.probability) || 0);
+      const sliceAngle = (prob / totalProbability) * (2 * Math.PI);
       const endAngle = currentAngle + sliceAngle;
 
       // 부채꼴 채우기
@@ -93,7 +115,7 @@ export default function RouletteWheel({
       ctx.fillStyle = '#4A3B43';
       ctx.font = `bold ${Math.round(15 * scale)}px -apple-system, BlinkMacSystemFont, "Gowun Dodum", sans-serif`;
 
-      let label = item.title;
+      let label = item.title || `항목 ${index + 1}`;
       if (item.audio_url) {
         label = `🎵 ${label}`;
       }
@@ -107,7 +129,7 @@ export default function RouletteWheel({
       // 확률 % 표시
       ctx.font = `${Math.round(11 * scale)}px -apple-system, sans-serif`;
       ctx.fillStyle = 'rgba(74, 59, 67, 0.65)';
-      ctx.fillText(`${item.probability}%`, radius - 24 * scale, 16 * scale);
+      ctx.fillText(`${prob}%`, radius - 24 * scale, 16 * scale);
 
       ctx.restore();
 
