@@ -225,7 +225,7 @@ export default function RouletteWheel({
     const totalRotation = baseRounds * 360 + targetSectorOffset - startAngle;
     const finalAngle = currentRotationRef.current + totalRotation;
 
-    const duration = 4500; // 4.5초 동안 부드럽게 감속
+    const duration = 3500; // 3.5초 경쾌하고 스릴 넘치는 회전
     const startTime = performance.now();
     lastTickAngleRef.current = currentRotationRef.current;
 
@@ -254,9 +254,13 @@ export default function RouletteWheel({
         // 애니메이션 완료
         currentRotationRef.current = finalAngle;
         drawWheel(finalAngle);
-        setIsSpinning(false);
         playWinChime();
-        onSpinEnd(winnerItem);
+
+        // 멈춤 직후 즉시 결과 다이얼로그 호출 (중복 클릭 틈새 완벽 차단)
+        setTimeout(() => {
+          setIsSpinning(false);
+          onSpinEnd(winnerItem);
+        }, 120);
       }
     };
 

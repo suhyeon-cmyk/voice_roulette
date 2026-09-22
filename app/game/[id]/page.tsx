@@ -49,18 +49,29 @@ function GamePlayContent() {
     loadData();
   }, [rouletteId]);
 
-  const handleSpinEnd = async (winnerItem: RouletteItem) => {
+  const handleSpinEnd = (winnerItem: RouletteItem) => {
     if (!state) return;
     const roulette = state.roulette;
 
-    if (!isTestMode) {
-      // 일반 플레이 시에만 1회 차감 (테스트 모드에서는 스핀 소모 없음)
-      const nextRemaining = await consumeSpin(roulette.id);
-      setState((prev) => (prev ? { ...prev, remaining_spins: nextRemaining } : null));
-    }
-
+    // 1) 결과 모달 즉각 오픈 (대기 시간 0초!)
     setWinner(winnerItem);
     setShowResultModal(true);
+
+    // 2) 일반 플레이 시 낙관적 차감 및 백그라운드 서버 동기화
+    if (!isTestMode && roulette.reset_mode !== 'infinite') {
+      setState((prev) =>
+        prev
+          ? { ...prev, remaining_spins: Math.max(0, prev.remaining_spins - 1) }
+          : null
+      );
+      consumeSpin(roulette.id)
+        .then((nextRemaining) => {
+          setState((prev) =>
+            prev ? { ...prev, remaining_spins: nextRemaining } : null
+          );
+        })
+        .catch((err) => console.warn('Background spin consume error:', err));
+    }
   };
 
   if (loading) {
@@ -183,7 +194,7 @@ function GamePlayContent() {
           <RouletteWheel
             items={items}
             onSpinEnd={handleSpinEnd}
-            disabled={!isValidPeriod || (!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0)}
+            disabled={!isValidPeriod || showResultModal || (!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0)}
             remainingSpins={isTestMode || roulette.reset_mode === 'infinite' ? 999 : remaining}
             onWheelClick={() => setShowItemsModal(true)}
           />
