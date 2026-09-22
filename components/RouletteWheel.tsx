@@ -116,12 +116,15 @@ export default function RouletteWheel({
       ctx.font = `bold ${Math.round(15 * scale)}px -apple-system, BlinkMacSystemFont, "Gowun Dodum", sans-serif`;
 
       let label = item.title || `항목 ${index + 1}`;
-      if (item.audio_url) {
-        label = `🎵 ${label}`;
+      let prefix = '';
+      if (item.audio_url) prefix += '🎵';
+      if (item.image_url) prefix += '🖼️';
+      if (prefix) {
+        label = `${prefix} ${label}`;
       }
       // 텍스트가 너무 길면 말줄임
-      if (label.length > 12) {
-        label = label.slice(0, 11) + '…';
+      if (label.length > 13) {
+        label = label.slice(0, 12) + '…';
       }
 
       ctx.fillText(label, radius - 24 * scale, 0);

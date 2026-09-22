@@ -14,6 +14,61 @@ export interface AdminRouletteStats {
   totalProbability: number;
 }
 
+interface ItemMetaJson {
+  vr_meta: 1;
+  an?: string | null;
+  img?: string | null;
+  in?: string | null;
+  txt?: string | null;
+}
+
+/**
+ * DB에 image_url, text_message 컬럼이 아직 없을 때 audio_name에 JSON으로 메타데이터를 보존합니다.
+ */
+function encodeItemMetadata(it: {
+  audio_name?: string | null;
+  image_url?: string | null;
+  image_name?: string | null;
+  text_message?: string | null;
+}): string | null {
+  const hasExtra = it.image_url || it.image_name || it.text_message;
+  if (!hasExtra) {
+    return it.audio_name || null;
+  }
+  const meta: ItemMetaJson = {
+    vr_meta: 1,
+    an: it.audio_name || null,
+    img: it.image_url || null,
+    in: it.image_name || null,
+    txt: it.text_message || null,
+  };
+  return JSON.stringify(meta);
+}
+
+/**
+ * audio_name에 인코딩된 메타데이터가 있으면 image_url, text_message, image_name으로 복원합니다.
+ */
+function decodeItemMetadata(it: RouletteItem): RouletteItem {
+  if (it.image_url || it.text_message) {
+    return it;
+  }
+  if (it.audio_name && typeof it.audio_name === 'string' && it.audio_name.startsWith('{"vr_meta":1')) {
+    try {
+      const meta = JSON.parse(it.audio_name) as ItemMetaJson;
+      return {
+        ...it,
+        audio_name: meta.an || undefined,
+        image_url: meta.img || undefined,
+        image_name: meta.in || undefined,
+        text_message: meta.txt || undefined,
+      };
+    } catch {
+      return it;
+    }
+  }
+  return it;
+}
+
 /**
  * Supabase DB에서 모든 룰렛 목록을 최신순으로 가져옵니다.
  */
@@ -60,7 +115,7 @@ export async function getAllServerItems(): Promise<RouletteItem[]> {
       return [];
     }
 
-    return (data || []) as RouletteItem[];
+    return ((data || []) as RouletteItem[]).map(decodeItemMetadata);
   } catch (err) {
     console.error('Exception fetching roulette items from Supabase:', err);
     return [];
@@ -100,7 +155,7 @@ export async function getServerRouletteData(
 
     return {
       roulette: roulette as RouletteData,
-      items: (items || []) as RouletteItem[],
+      items: ((items || []) as RouletteItem[]).map(decodeItemMetadata),
     };
   } catch (err) {
     console.error('Exception fetching roulette data:', err);
@@ -192,7 +247,7 @@ export async function upsertServerRoulette(
         title: it.title,
         probability: it.probability,
         audio_url: it.audio_url,
-        audio_name: it.audio_name,
+        audio_name: encodeItemMetadata(it),
         audio_duration: it.audio_duration,
         color: it.color,
         sort_order: it.sort_order,
@@ -314,7 +369,7 @@ export async function getAllServerRoulettesWithStats(): Promise<AdminRouletteSta
       console.error('Error fetching roulette items for stats:', iError);
     }
 
-    const itemsList = (allItems || []) as RouletteItem[];
+    const itemsList = ((allItems || []) as RouletteItem[]).map(decodeItemMetadata);
 
     return (roulettes as RouletteData[]).map((roulette) => {
       const items = itemsList.filter((it) => it.roulette_id === roulette.id);
