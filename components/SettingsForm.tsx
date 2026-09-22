@@ -64,8 +64,20 @@ export default function SettingsForm({
   const [dailySpins, setDailySpins] = useState<number>(targetInitial?.daily_spins ?? 3);
   const [totalSpins, setTotalSpins] = useState<number>(targetInitial?.total_spins ?? 10);
   const [bonusSpins, setBonusSpins] = useState<number>(targetInitial?.bonus_spins ?? 0);
-  const [usedSpins] = useState<number>(targetInitial?.used_spins ?? 0);
+  const [usedSpins, setUsedSpins] = useState<number>(targetInitial?.used_spins ?? 0);
   const [lastResetDate] = useState<string>(targetInitial?.last_reset_date || new Date().toISOString().slice(0, 10));
+
+  // 외부 targetInitial 변경 시 스핀 수치 동기화
+  useEffect(() => {
+    if (targetInitial) {
+      if (typeof targetInitial.bonus_spins === 'number') {
+        setBonusSpins(targetInitial.bonus_spins);
+      }
+      if (typeof targetInitial.used_spins === 'number') {
+        setUsedSpins(targetInitial.used_spins);
+      }
+    }
+  }, [targetInitial]);
 
   // 유효 기간 설정
   const [usePeriod, setUsePeriod] = useState<boolean>(Boolean(targetInitial?.valid_from || targetInitial?.valid_until));
@@ -187,9 +199,17 @@ export default function SettingsForm({
     const nextBonus = bonusSpins + delta;
     setBonusSpins(nextBonus);
 
-    // 이미 저장된 룰렛인 경우 DB/스토리지에 즉시 반영
+    // 이미 저장된 룰렛인 경우 DB/스토리지에 즉시 반영 및 최신 used_spins 동기화
     if (isEditMode) {
-      await adjustBonusSpins(rouletteId, delta);
+      const updated = await adjustBonusSpins(rouletteId, delta);
+      if (updated) {
+        if (typeof updated.bonus_spins === 'number') {
+          setBonusSpins(updated.bonus_spins);
+        }
+        if (typeof updated.used_spins === 'number') {
+          setUsedSpins(updated.used_spins);
+        }
+      }
     }
   };
 

@@ -49,6 +49,24 @@ function GamePlayContent() {
     loadData();
   }, [rouletteId]);
 
+  // 설정 화면 등에서 스핀 부여/수정 후 게임 화면으로 돌아올 때 즉시 자동 갱신
+  useEffect(() => {
+    const handleFocus = async () => {
+      if (!rouletteId) return;
+      try {
+        const data = await getRouletteData(rouletteId);
+        if (data) {
+          setState(data);
+        }
+      } catch (err) {
+        console.warn('Auto refresh on focus failed:', err);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [rouletteId]);
+
   const handleSpinEnd = (winnerItem: RouletteItem) => {
     if (!state) return;
     const roulette = state.roulette;
