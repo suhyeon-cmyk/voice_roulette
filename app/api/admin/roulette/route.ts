@@ -18,7 +18,9 @@ export async function GET() {
 
     const totalRoulettes = roulettesWithDetails.length;
     const totalItems = roulettesWithDetails.reduce((sum, r) => sum + r.itemCount, 0);
-    const totalAudios = roulettesWithDetails.reduce((sum, r) => sum + r.audioCount, 0);
+    const totalAudios = roulettesWithDetails.reduce((sum, r) => sum + (r.audioCount || 0), 0);
+    const totalImages = roulettesWithDetails.reduce((sum, r) => sum + (r.imageCount || 0), 0);
+    const totalTexts = roulettesWithDetails.reduce((sum, r) => sum + (r.textCount || 0), 0);
     const totalActiveSpins = roulettesWithDetails.reduce((sum, r) => sum + r.remaining_spins, 0);
 
     return NextResponse.json({
@@ -27,6 +29,8 @@ export async function GET() {
         totalRoulettes,
         totalItems,
         totalAudios,
+        totalImages,
+        totalTexts,
         totalActiveSpins,
       },
     });

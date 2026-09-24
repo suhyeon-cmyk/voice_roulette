@@ -9,8 +9,8 @@ export interface AdminRouletteStats {
   items: RouletteItem[];
   itemCount: number;
   audioCount: number;
-  imageCount?: number;
-  textCount?: number;
+  imageCount: number;
+  textCount: number;
   totalProbability: number;
 }
 

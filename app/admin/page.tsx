@@ -29,6 +29,8 @@ import {
   RotateCcw,
   Zap,
   X,
+  Image as ImageIcon,
+  MessageSquare,
 } from 'lucide-react';
 import { RouletteData, RouletteItem } from '@/types/roulette';
 import { deleteRouletteData } from '@/lib/storage';
@@ -38,6 +40,8 @@ interface AdminRouletteStats {
   items: RouletteItem[];
   itemCount: number;
   audioCount: number;
+  imageCount: number;
+  textCount: number;
   totalProbability: number;
   remaining_spins: number;
   is_valid_period: boolean;
@@ -49,6 +53,8 @@ interface AdminDashboardData {
     totalRoulettes: number;
     totalItems: number;
     totalAudios: number;
+    totalImages: number;
+    totalTexts: number;
     totalActiveSpins: number;
   };
 }
@@ -485,9 +491,9 @@ export default function SuperAdminPage() {
 
       {/* 2. 대시보드 메인 본문 */}
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
-        {/* 통계 요약 카드 4종 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-5">
-          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+        {/* 통계 요약 카드 6종 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5 lg:gap-4">
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20">
                 <Layers className="w-3.5 h-3.5" />
@@ -500,7 +506,7 @@ export default function SuperAdminPage() {
             </span>
           </div>
 
-          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -513,12 +519,12 @@ export default function SuperAdminPage() {
             </span>
           </div>
 
-          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
                 <Volume2 className="w-3.5 h-3.5" />
               </span>
-              <span>녹음된 음성 수</span>
+              <span>녹음된 음성</span>
             </span>
             <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalAudios ?? 0}
@@ -526,12 +532,38 @@ export default function SuperAdminPage() {
             </span>
           </div>
 
-          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-1.5 shadow-sm transition-colors">
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                <MessageSquare className="w-3.5 h-3.5" />
+              </span>
+              <span>등록된 텍스트</span>
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
+              {data?.stats?.totalTexts ?? 0}
+              <span className="text-xs font-normal text-slate-400 ml-1.5">개</span>
+            </span>
+          </div>
+
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <ImageIcon className="w-3.5 h-3.5" />
+              </span>
+              <span>등록된 이미지</span>
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-white mt-1">
+              {data?.stats?.totalImages ?? 0}
+              <span className="text-xs font-normal text-slate-400 ml-1.5">개</span>
+            </span>
+          </div>
+
+          <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm transition-colors">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
                 <Zap className="w-3.5 h-3.5" />
               </span>
-              <span>전체 활성 잔여 스핀</span>
+              <span>활성 잔여 스핀</span>
             </span>
             <span className="text-2xl sm:text-3xl font-black text-white mt-1">
               {data?.stats?.totalActiveSpins ?? 0}
@@ -619,7 +651,7 @@ export default function SuperAdminPage() {
           ) : (
             filteredRoulettes.map((item) => {
               const roulette = item.roulette;
-              const { items, itemCount, audioCount, totalProbability, remaining_spins, is_valid_period } = item;
+              const { items, itemCount, audioCount, imageCount, textCount, totalProbability, remaining_spins, is_valid_period } = item;
               const isKeyVisible = visibleKeyIds[roulette.id];
               const isActionLoading = actionLoadingId === roulette.id;
 
@@ -788,14 +820,25 @@ export default function SuperAdminPage() {
 
                   {/* 카드 하단 1: 아이템 리스트 프리뷰 */}
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
                       <span className="font-bold flex items-center gap-1">
                         <Sparkles className="w-3.5 h-3.5 text-pink-400" />
                         <span>항목 목록 ({itemCount}개)</span>
                       </span>
-                      <span className="text-[11px] text-purple-300">
-                        음성 녹음: {audioCount} / {itemCount}개
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                        <span className="flex items-center gap-1 text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20" title="음성 메시지 등록 개수">
+                          <Volume2 className="w-3 h-3 text-purple-400" />
+                          <span>음성 {audioCount || 0}</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20" title="텍스트 메시지 등록 개수">
+                          <MessageSquare className="w-3 h-3 text-sky-400" />
+                          <span>텍스트 {textCount || 0}</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20" title="이미지 등록 개수">
+                          <ImageIcon className="w-3 h-3 text-emerald-400" />
+                          <span>이미지 {imageCount || 0}</span>
+                        </span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
@@ -810,7 +853,21 @@ export default function SuperAdminPage() {
                           </span>
                           <div className="flex items-center gap-1 shrink-0 ml-1.5 text-[11px] text-slate-400">
                             <span>{it.probability}%</span>
-                            {it.audio_url && <Volume2 className="w-3 h-3 text-purple-400 shrink-0" />}
+                            {it.audio_url && (
+                              <span title="음성 메시지 등록됨">
+                                <Volume2 className="w-3 h-3 text-purple-400 shrink-0" />
+                              </span>
+                            )}
+                            {it.text_message?.trim() && (
+                              <span title={`텍스트 메시지: ${it.text_message}`}>
+                                <MessageSquare className="w-3 h-3 text-sky-400 shrink-0" />
+                              </span>
+                            )}
+                            {it.image_url && (
+                              <span title="이미지 등록됨">
+                                <ImageIcon className="w-3 h-3 text-emerald-400 shrink-0" />
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}

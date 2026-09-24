@@ -1,26 +1,47 @@
 'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import RouletteWheel from '@/components/RouletteWheel';
 import ResultModal from '@/components/ResultModal';
 import ItemListModal from '@/components/ItemListModal';
 import { RouletteItem, RouletteState } from '@/types/roulette';
 import { consumeSpin, getRouletteData } from '@/lib/storage';
-import { Sparkles, Clock, AlertCircle, FlaskConical, Settings } from 'lucide-react';
+import {
+  Sparkles,
+  Clock,
+  AlertCircle,
+  FlaskConical,
+  Settings,
+  Lock,
+  Eye,
+  EyeOff,
+  X,
+  KeyRound,
+} from 'lucide-react';
 import Link from 'next/link';
 
 function GamePlayContent() {
+  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const rouletteId = params?.id as string;
-  const isTestMode = searchParams.get('mode') === 'test';
+  const isModeTestRequested = searchParams.get('mode') === 'test';
+  const urlKey = searchParams.get('key') || '';
 
   const [state, setState] = useState<RouletteState | null>(null);
   const [loading, setLoading] = useState(true);
   const [winner, setWinner] = useState<RouletteItem | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
+
+  // 테스트 모드 인증 상태
+  const [isTestAuthorized, setIsTestAuthorized] = useState<boolean>(false);
+  const [verifiedKey, setVerifiedKey] = useState<string>('');
+  const [showTestAuthModal, setShowTestAuthModal] = useState<boolean>(false);
+  const [testAuthPassword, setTestAuthPassword] = useState<string>('');
+  const [testAuthError, setTestAuthError] = useState<string>('');
+  const [showTestPassword, setShowTestPassword] = useState<boolean>(false);
 
   useEffect(() => {
     if (!rouletteId) return;
@@ -66,6 +87,68 @@ function GamePlayContent() {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [rouletteId]);
+
+  // 1) 테스트 모드 권한 확인 Effect
+  useEffect(() => {
+    if (!state) return;
+    const defaultPassword = process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234';
+    const expectedKey = state.roulette.edit_key || defaultPassword;
+
+    if (isModeTestRequested) {
+      if (urlKey && urlKey === expectedKey) {
+        // 올바른 관리자 키가 URL 파라미터로 함께 제공된 경우 (세팅 화면 / 관리자 콘솔 등에서 링크 클릭 시)
+        setIsTestAuthorized(true);
+        setVerifiedKey(urlKey);
+        setShowTestAuthModal(false);
+        setTestAuthError('');
+      } else {
+        // ?mode=test 로 직접 진입했거나 키가 틀린 경우 -> 비밀번호 인증 모달 띄우고 테스트 모드 진입 보류
+        setIsTestAuthorized(false);
+        setVerifiedKey('');
+        setShowTestAuthModal(true);
+      }
+    } else {
+      setIsTestAuthorized(false);
+      setVerifiedKey('');
+      setShowTestAuthModal(false);
+      setTestAuthError('');
+    }
+  }, [state, isModeTestRequested, urlKey]);
+
+  // 2) 테스트 모드 비밀번호 확인 제출 핸들러
+  const handleVerifyTestPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state) return;
+
+    const defaultPassword = process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234';
+    const expectedKey = state.roulette.edit_key || defaultPassword;
+    const trimmed = testAuthPassword.trim();
+
+    if (trimmed && trimmed === expectedKey) {
+      setIsTestAuthorized(true);
+      setVerifiedKey(trimmed);
+      setShowTestAuthModal(false);
+      setTestAuthError('');
+      setTestAuthPassword('');
+      // URL 갱신: ?mode=test&key=... 형태로 저장하여 새로고침 시에도 인증 유지
+      router.replace(`/game/${rouletteId}?mode=test&key=${encodeURIComponent(trimmed)}`);
+    } else {
+      setTestAuthError('비밀번호가 일치하지 않습니다. 다시 확인해주세요.');
+    }
+  };
+
+  // 3) 테스트 모드 취소 (일반 플레이 화면으로 전환)
+  const handleCancelTestAuth = () => {
+    setShowTestAuthModal(false);
+    setTestAuthError('');
+    setTestAuthPassword('');
+    setIsTestAuthorized(false);
+    setVerifiedKey('');
+    router.replace(`/game/${rouletteId}`);
+  };
+
+  // 실제 테스트 모드 활성 조건: URL 요청 & 관리자 비밀번호 인증 성공
+  const isTestMode = isModeTestRequested && isTestAuthorized;
 
   const handleSpinEnd = (winnerItem: RouletteItem) => {
     if (!state) return;
@@ -138,7 +221,7 @@ function GamePlayContent() {
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center px-4 py-2 sm:py-6 overflow-x-hidden">
-      {/* 테스트 모드 상단 배너 및 설정으로 돌아가기 버튼 */}
+      {/* 테스트 모드 상단 배너 및 설정으로 돌아가기 버튼 (인증 완료 시에만 노출) */}
       {isTestMode && (
         <div className="w-full max-w-[min(calc(100vw-32px),calc(100dvh-195px),480px)] mb-2 px-3.5 py-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 text-white rounded-2xl shadow-md flex items-center justify-between gap-2 text-xs animate-fade-in border border-white/20">
           <div className="flex items-center gap-1.5 font-black">
@@ -146,7 +229,7 @@ function GamePlayContent() {
             <span>테스트 모드 (스핀 소모 없음)</span>
           </div>
           <Link
-            href={`/settings/${rouletteId}?key=${roulette.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}`}
+            href={verifiedKey ? `/settings/${rouletteId}?key=${encodeURIComponent(verifiedKey)}` : `/settings/${rouletteId}`}
             className="px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 font-extrabold text-xs rounded-xl shadow-xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -212,7 +295,7 @@ function GamePlayContent() {
           <RouletteWheel
             items={items}
             onSpinEnd={handleSpinEnd}
-            disabled={!isValidPeriod || showResultModal || (!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0)}
+            disabled={!isValidPeriod || showResultModal || showTestAuthModal || (!isTestMode && roulette.reset_mode !== 'infinite' && remaining <= 0)}
             remainingSpins={isTestMode || roulette.reset_mode === 'infinite' ? 999 : remaining}
             onWheelClick={() => setShowItemsModal(true)}
           />
@@ -227,7 +310,7 @@ function GamePlayContent() {
         remainingSpins={remaining}
         isTestMode={isTestMode}
         rouletteId={rouletteId}
-        editKey={roulette.edit_key || searchParams.get('key') || process.env.NEXT_PUBLIC_DEFAULT_SETTINGS_PASSWORD || '1234'}
+        editKey={isTestMode && verifiedKey ? verifiedKey : undefined}
       />
 
       {/* 룰렛 전체 항목 다이얼로그 모달 */}
@@ -237,6 +320,101 @@ function GamePlayContent() {
         rouletteTitle={roulette.title}
         items={items}
       />
+
+      {/* 테스트 모드 관리자 비밀번호 확인 모달 */}
+      {showTestAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="w-full max-w-sm bg-white rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4 animate-scale-up border border-purple-100 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 닫기 버튼: 취소하고 일반 모드로 전환 */}
+            <button
+              type="button"
+              onClick={handleCancelTestAuth}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+              title="닫기 (일반 플레이로 이동)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* 헤더 */}
+            <div className="flex flex-col items-center text-center gap-2 pt-1">
+              <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shadow-xs">
+                <FlaskConical className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full mb-1 border border-purple-200/60">
+                  <Lock className="w-3 h-3" />
+                  관리자 인증 필요
+                </span>
+                <h3 className="text-base font-black text-gray-900 tracking-tight">
+                  테스트 모드 비밀번호 확인
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  스핀 소모 없는 무제한 테스트 모드는 룰렛 제작자만 이용할 수 있습니다.<br />
+                  설정 시 등록한 관리자 비밀번호를 입력해주세요.
+                </p>
+              </div>
+            </div>
+
+            {/* 폼 */}
+            <form onSubmit={handleVerifyTestPassword} className="flex flex-col gap-3">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <input
+                  type={showTestPassword ? 'text' : 'password'}
+                  value={testAuthPassword}
+                  onChange={(e) => {
+                    setTestAuthPassword(e.target.value);
+                    if (testAuthError) setTestAuthError('');
+                  }}
+                  placeholder="관리자 비밀번호 입력"
+                  autoFocus
+                  className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border rounded-2xl text-xs font-medium focus:outline-none transition-all ${
+                    testAuthError
+                      ? 'border-rose-400 focus:ring-2 focus:ring-rose-200 bg-rose-50/30'
+                      : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTestPassword(!showTestPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  {showTestPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {testAuthError && (
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium flex items-center gap-1.5 animate-shake">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{testAuthError}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 mt-1">
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 hover:from-purple-700 hover:to-rose-600 text-white font-bold text-xs shadow-sm transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  <span>인증하고 테스트 모드 시작</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelTestAuth}
+                  className="w-full py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  일반 게임으로 플레이하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
